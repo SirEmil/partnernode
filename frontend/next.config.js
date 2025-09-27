@@ -3,10 +3,10 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' ? 'https://partnernode-676480537087.europe-north2.run.app' : 'http://localhost:3001'),
   },
   async rewrites() {
-    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' ? 'https://partnernode-676480537087.europe-north2.run.app' : 'http://localhost:3001')).trim();
     return [
       {
         source: '/api/:path*',
