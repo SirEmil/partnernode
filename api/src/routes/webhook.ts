@@ -71,7 +71,14 @@ const normalizeOkResponse = (text: string): boolean => {
     'confirm!'
   ];
   
-  return okPatterns.includes(normalizedText);
+  const isMatch = okPatterns.includes(normalizedText);
+  console.log(`🔍 OK Pattern Check:`);
+  console.log(`  - Input: "${text}"`);
+  console.log(`  - Normalized: "${normalizedText}"`);
+  console.log(`  - Patterns: ${okPatterns.slice(0, 5).join(', ')}...`);
+  console.log(`  - Match found: ${isMatch}`);
+  
+  return isMatch;
 };
 
 // Function to find the original SMS by contact number and recent timestamp
@@ -175,6 +182,11 @@ router.post('/justcall-sms', async (req, res) => {
     
     // Check if this is an OK response
     const isOkResponse = normalizeOkResponse(body);
+    
+    console.log(`🔍 OK Detection Debug:`);
+    console.log(`  - Original body: "${body}"`);
+    console.log(`  - Normalized: "${body.toLowerCase().trim()}"`);
+    console.log(`  - Is OK response: ${isOkResponse}`);
     
     if (isOkResponse) {
       console.log(`OK response detected from ${contact_number}: "${body}"`);
