@@ -1,224 +1,380 @@
-# Partnernode - Contract Sender
+<div align="center">
 
-A professional CRM and SMS automation platform that integrates Pipedrive CRM with JustCall SMS services. Built with Next.js frontend and Express.js backend, designed for deployment on Google Cloud Run.
+# 🚀 Partnernode Contract Sender
 
-**CRM integrated system for Partnernode, allows for a way more simple way of sending contracts**
+**Professional CRM & SMS Automation Platform**
 
-## 🚀 Features
+*Streamline contract management with intelligent CRM integration and automated SMS workflows*
 
-- **Modern Authentication**: Secure JWT-based login and registration
-- **CRM Integration**: Fetch leads directly from Pipedrive CRM
-- **SMS Automation**: Send SMS messages through JustCall API
-- **Professional UI**: Clean, modern interface inspired by JustCall
-- **Cloud Ready**: Optimized for Google Cloud Run deployment
-- **Responsive Design**: Works seamlessly on desktop and mobile
+[![Next.js](https://img.shields.io/badge/Next.js-13+-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![Express.js](https://img.shields.io/badge/Express.js-4.x-green?style=for-the-badge&logo=express)](https://expressjs.com/)
+[![Firebase](https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore-orange?style=for-the-badge&logo=firebase)](https://firebase.google.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-3.x-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
 
-## 📁 Project Structure
+[![Deploy to Google Cloud Run](https://img.shields.io/badge/Deploy%20to-Google%20Cloud%20Run-4285F4?style=for-the-badge&logo=google-cloud)](https://cloud.google.com/run)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker)](https://docker.com/)
 
+---
+
+</div>
+
+## ✨ Overview
+
+**Partnernode Contract Sender** is a cutting-edge business automation platform that revolutionizes contract management by seamlessly integrating Pipedrive CRM with JustCall SMS services. Built with modern web technologies, it provides a professional, scalable solution for businesses looking to automate their contract workflows.
+
+### 🎯 **Key Value Proposition**
+> *"Transform your contract management from manual processes to intelligent automation - reducing time, eliminating errors, and boosting customer satisfaction."*
+
+---
+
+## 🌟 Features
+
+### 🔐 **Enterprise Authentication**
+- **Firebase-powered security** with JWT tokens
+- **Role-based access control** (Admin/User levels)
+- **Secure user management** with encrypted passwords
+- **Session management** with automatic token refresh
+
+### 📊 **CRM Integration**
+- **Pipedrive API integration** for real-time lead data
+- **Organization number search** for instant lead lookup
+- **Auto-population** of customer details
+- **Lead management** with comprehensive data display
+
+### 📱 **SMS Automation**
+- **JustCall API integration** for reliable SMS delivery
+- **Dynamic contract templates** with placeholder substitution
+- **E.164 phone number formatting** for international compatibility
+- **Delivery status tracking** and confirmation management
+
+### 🎨 **Modern UI/UX**
+- **Responsive design** optimized for all devices
+- **Professional dashboard** with intuitive navigation
+- **Real-time updates** and live data refresh
+- **Clean, modern interface** inspired by industry leaders
+
+### ⚙️ **Admin Features**
+- **Comprehensive SMS records** with advanced filtering
+- **User activity monitoring** and analytics
+- **Product & terms management** system
+- **Settings configuration** for SMS sender numbers
+
+---
+
+## 🏗️ Architecture
+
+<div align="center">
+
+```mermaid
+graph TB
+    subgraph "Frontend (Next.js)"
+        A[Dashboard] --> B[Auth Context]
+        A --> C[API Client]
+        D[Admin Panel] --> C
+        E[Settings] --> C
+    end
+    
+    subgraph "Backend (Express.js)"
+        F[Auth Routes] --> G[Firebase Admin]
+        H[SMS Routes] --> I[JustCall API]
+        J[Leads Routes] --> K[Pipedrive API]
+        L[Products/Terms] --> M[Firestore]
+    end
+    
+    subgraph "External Services"
+        N[Firebase Auth]
+        O[Firestore DB]
+        P[JustCall SMS]
+        Q[Pipedrive CRM]
+    end
+    
+    B --> F
+    C --> H
+    C --> J
+    C --> L
+    G --> N
+    I --> P
+    K --> Q
+    M --> O
+    
+    style A fill:#e1f5fe
+    style D fill:#e8f5e8
+    style E fill:#fff3e0
+    style F fill:#f3e5f5
+    style H fill:#e0f2f1
+    style J fill:#fce4ec
+    style L fill:#fff8e1
 ```
-contract-sender/
-├── api/                    # Backend API (Express.js)
-│   ├── src/
-│   │   ├── routes/        # API routes (auth, leads, sms)
-│   │   ├── middleware/    # Authentication middleware
-│   │   └── index.ts       # Main server file
-│   ├── Dockerfile         # API container configuration
-│   └── cloudbuild.yaml    # Google Cloud Build config
-├── frontend/              # Frontend (Next.js)
-│   ├── app/               # Next.js app directory
-│   │   ├── dashboard/     # Dashboard page
-│   │   ├── globals.css    # Global styles
-│   │   ├── layout.tsx     # Root layout
-│   │   └── page.tsx       # Landing page
-│   ├── Dockerfile         # Frontend container configuration
-│   └── cloudbuild.yaml    # Google Cloud Build config
-├── docker-compose.yml     # Local development setup
-├── deploy.sh             # Deployment script
-└── env.example           # Environment variables template
+
+</div>
+
+---
+
+## 🚀 Quick Start
+
+### 📋 Prerequisites
+
+- **Node.js** 18+ 
+- **npm** or **yarn**
+- **Docker** (optional, for containerized deployment)
+- **Google Cloud CLI** (for Cloud Run deployment)
+
+### ⚡ Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/SirEmil/partnernode.git
+cd partnernode
+
+# Install dependencies
+npm install
+cd api && npm install
+cd ../frontend && npm install
+cd ..
 ```
 
-## 🛠️ Setup & Installation
+### 🔧 Environment Setup
 
-### Prerequisites
+```bash
+# Copy environment template
+cp env.example .env
 
-- Node.js 18+ 
-- npm or yarn
-- Docker (for containerized deployment)
-- Google Cloud CLI (for Cloud Run deployment)
+# Edit with your credentials
+nano .env
+```
 
-### Local Development
-
-1. **Clone and install dependencies:**
-   ```bash
-   git clone <your-repo-url>
-   cd contract-sender
-   npm install
-   cd api && npm install
-   cd ../frontend && npm install
-   ```
-
-2. **Set up environment variables:**
-   ```bash
-   cp env.example .env
-   # Edit .env with your actual API tokens and configuration
-   ```
-
-3. **Start development servers:**
-   ```bash
-   # From root directory
-   npm run dev
-   
-   # Or start individually:
-   npm run dev:api      # API on http://localhost:3001
-   npm run dev:frontend # Frontend on http://localhost:3000
-   ```
-
-4. **Using Docker Compose:**
-   ```bash
-   docker-compose up --build
-   ```
-
-### Environment Variables
-
-Create a `.env` file in the root directory with the following variables:
-
+**Required Environment Variables:**
 ```env
-# JWT Configuration
-JWT_SECRET=your-super-secret-jwt-key-here
+# Firebase Configuration
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=your-service-account-email
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
 
-# API Configuration  
+# API Configuration
 PORT=3001
 NODE_ENV=development
 FRONTEND_URL=http://localhost:3000
 
-# Pipedrive CRM Integration
-PIPEDRIVE_API_TOKEN=your-pipedrive-api-token
+# Pipedrive CRM
+PIPEDRIVE_API_TOKEN=your-pipedrive-token
 
-# JustCall SMS Integration
-JUSTCALL_API_TOKEN=your-justcall-api-token
-JUSTCALL_DEFAULT_FROM_NUMBER=+1234567890
+# JustCall SMS
+JUSTCALL_API_TOKEN=your-justcall-token
 
-# Frontend Configuration
+# Frontend
 NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
 
-## 🔧 API Endpoints
+### 🏃‍♂️ Running the Application
 
-### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `GET /api/auth/me` - Get current user
+```bash
+# Development mode (both frontend & backend)
+npm run dev
 
-### Leads (Pipedrive Integration)
-- `GET /api/leads/fetch` - Fetch leads from Pipedrive
-- `GET /api/leads/:id` - Get specific lead details
+# Or run individually:
+npm run dev:api      # Backend on http://localhost:3001
+npm run dev:frontend  # Frontend on http://localhost:3000
 
-### SMS (JustCall Integration)
-- `POST /api/sms/send` - Send SMS message
-- `GET /api/sms/status/:messageId` - Get SMS status
-- `GET /api/sms/history` - Get SMS history
-
-## 🚀 Deployment to Google Cloud Run
-
-### Prerequisites
-- Google Cloud Project with billing enabled
-- Google Cloud CLI installed and authenticated
-- Required APIs enabled (Cloud Run, Cloud Build, Container Registry)
-
-### Deploy
-
-1. **Update the deployment script:**
-   ```bash
-   # Edit deploy.sh and replace 'your-project-id' with your actual project ID
-   ```
-
-2. **Run deployment:**
-   ```bash
-   ./deploy.sh your-project-id us-central1
-   ```
-
-3. **Set environment variables in Cloud Run:**
-   ```bash
-   # API service
-   gcloud run services update contract-sender-api --region=us-central1 \
-     --set-env-vars="PIPEDRIVE_API_TOKEN=your-token,JUSTCALL_API_TOKEN=your-token,JWT_SECRET=your-secret"
-   
-   # Frontend service  
-   gcloud run services update contract-sender-frontend --region=us-central1 \
-     --set-env-vars="NEXT_PUBLIC_API_URL=https://your-api-url.run.app"
-   ```
-
-### Manual Deployment
-
-If you prefer manual deployment:
-
-1. **Build and push API:**
-   ```bash
-   cd api
-   gcloud builds submit --config cloudbuild.yaml
-   ```
-
-2. **Build and push Frontend:**
-   ```bash
-   cd frontend
-   gcloud builds submit --config cloudbuild.yaml
-   ```
-
-## 🔑 API Integrations
-
-### Pipedrive CRM
-1. Go to [Pipedrive Settings > API](https://app.pipedrive.com/settings/api)
-2. Generate a new API token
-3. Add the token to your environment variables
-
-### JustCall SMS
-1. Go to [JustCall Settings > API](https://app.justcall.io/settings/api)
-2. Generate a new API token
-3. Add the token and your phone number to environment variables
-
-## 🎨 UI/UX Features
-
-- **Modern Design**: Clean, professional interface inspired by JustCall
-- **Responsive Layout**: Optimized for all device sizes
-- **Dark/Light Theme**: Automatic theme switching
-- **Real-time Updates**: Live data refresh and notifications
-- **Intuitive Navigation**: Easy-to-use dashboard and controls
-
-## 🔒 Security Features
-
-- JWT-based authentication
-- Password hashing with bcrypt
-- Rate limiting on API endpoints
-- CORS protection
-- Helmet.js security headers
-- Input validation and sanitization
-
-## 📊 Monitoring & Health Checks
-
-- Health check endpoints (`/health`)
-- Container health checks in Docker
-- Cloud Run health monitoring
-- Error logging and monitoring
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📝 License
-
-This project is licensed under the MIT License.
-
-## 🆘 Support
-
-For support and questions:
-- Create an issue in the repository
-- Check the documentation
-- Review the API integration guides
+# Docker Compose
+docker-compose up --build
+```
 
 ---
 
-Built with ❤️ using Next.js, Express.js, and Google Cloud Run
+## 📚 API Documentation
+
+### 🔐 Authentication Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/auth/register` | User registration |
+| `POST` | `/api/auth/login` | User authentication |
+| `GET` | `/api/auth/me` | Get current user data |
+
+### 📊 CRM Integration
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/leads/fetch?org_number=123456789` | Fetch leads by organization number |
+| `GET` | `/api/leads/:id` | Get specific lead details |
+
+### 📱 SMS Management
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/sms/send` | Send SMS with contract template |
+| `PATCH` | `/api/sms/confirm/:firestoreId` | Confirm contract acceptance |
+| `GET` | `/api/sms/records` | Get all SMS records (Admin only) |
+
+### ⚙️ Configuration Management
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/products` | Get all products |
+| `POST` | `/api/products` | Create new product |
+| `GET` | `/api/terms` | Get all terms & conditions |
+| `GET` | `/api/sms-settings` | Get SMS configuration |
+
+---
+
+## 🎨 User Interface
+
+### 🏠 **Dashboard**
+- **Lead Search**: Find customers by organization number
+- **SMS Composer**: Create and send contract SMS
+- **Product Selection**: Choose from predefined contract templates
+- **Real-time Preview**: See exactly what customers will receive
+
+### 👑 **Admin Panel**
+- **SMS Records**: Comprehensive view of all sent messages
+- **Advanced Filtering**: Filter by status, date, user, confirmation
+- **User Management**: Monitor team activity
+- **Analytics**: Track contract confirmation rates
+
+### ⚙️ **Settings**
+- **Product Management**: Create and edit contract templates
+- **Terms & Conditions**: Manage legal document links
+- **SMS Configuration**: Set sender numbers and preferences
+
+---
+
+## 🔒 Security Features
+
+- **🔐 JWT Authentication** with Firebase Admin SDK
+- **🛡️ Role-based Access Control** (RBAC)
+- **🔒 Password Encryption** with bcrypt
+- **🌐 CORS Protection** and security headers
+- **✅ Input Validation** with Joi schemas
+- **🚫 Rate Limiting** on API endpoints
+- **🔍 SQL Injection Protection** (NoSQL with Firestore)
+
+---
+
+## 🚀 Deployment
+
+### ☁️ Google Cloud Run
+
+```bash
+# Deploy with one command
+./deploy.sh your-project-id us-central1
+
+# Set environment variables
+gcloud run services update partnernode-api --region=us-central1 \
+  --set-env-vars="FIREBASE_PROJECT_ID=...,PIPEDRIVE_API_TOKEN=..."
+```
+
+### 🐳 Docker
+
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
+
+# Production deployment
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+### 📦 Manual Deployment
+
+```bash
+# API Service
+cd api
+gcloud builds submit --config cloudbuild.yaml
+
+# Frontend Service
+cd frontend
+gcloud builds submit --config cloudbuild.yaml
+```
+
+---
+
+## 🔌 Integrations
+
+### 📊 **Pipedrive CRM**
+- **Real-time lead data** synchronization
+- **Custom field mapping** for organization numbers
+- **Person details** including phone numbers
+- **Deal tracking** and status updates
+
+### 📱 **JustCall SMS**
+- **Reliable SMS delivery** with status tracking
+- **International number support** (E.164 format)
+- **Delivery confirmations** and error handling
+- **Cost-effective messaging** for business use
+
+### 🔥 **Firebase**
+- **User authentication** and management
+- **Real-time database** with Firestore
+- **Secure data storage** with encryption
+- **Scalable infrastructure** for growth
+
+---
+
+## 📊 Performance & Monitoring
+
+- **⚡ Fast API responses** with optimized queries
+- **📈 Real-time monitoring** with health checks
+- **🔍 Error logging** and debugging tools
+- **📊 Performance metrics** and analytics
+- **🚨 Alert system** for critical issues
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how you can help:
+
+1. **🍴 Fork the repository**
+2. **🌿 Create a feature branch**: `git checkout -b feature/amazing-feature`
+3. **💾 Commit your changes**: `git commit -m 'Add amazing feature'`
+4. **📤 Push to the branch**: `git push origin feature/amazing-feature`
+5. **🔄 Open a Pull Request**
+
+### 📝 Development Guidelines
+
+- **TypeScript** for type safety
+- **ESLint** for code quality
+- **Prettier** for code formatting
+- **Conventional Commits** for commit messages
+- **Test coverage** for new features
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🆘 Support & Community
+
+### 📞 **Getting Help**
+- **🐛 Bug Reports**: [Create an issue](https://github.com/SirEmil/partnernode/issues)
+- **💡 Feature Requests**: [Start a discussion](https://github.com/SirEmil/partnernode/discussions)
+- **📚 Documentation**: Check the [Wiki](https://github.com/SirEmil/partnernode/wiki)
+
+### 🌟 **Show Your Support**
+- **⭐ Star this repository** if you find it helpful
+- **🐦 Follow us** for updates and announcements
+- **💬 Join discussions** to share ideas and feedback
+
+---
+
+<div align="center">
+
+### 🚀 **Ready to Transform Your Contract Management?**
+
+[![Deploy to Google Cloud Run](https://img.shields.io/badge/Deploy%20Now-Google%20Cloud%20Run-4285F4?style=for-the-badge&logo=google-cloud)](https://cloud.google.com/run)
+[![Try it Live](https://img.shields.io/badge/Try%20it-Live%20Demo-00C851?style=for-the-badge)](https://your-demo-url.com)
+
+**Built with ❤️ by the Partnernode Team**
+
+*Empowering businesses through intelligent automation*
+
+---
+
+[![GitHub stars](https://img.shields.io/github/stars/SirEmil/partnernode?style=social)](https://github.com/SirEmil/partnernode/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/SirEmil/partnernode?style=social)](https://github.com/SirEmil/partnernode/network)
+[![GitHub watchers](https://img.shields.io/github/watchers/SirEmil/partnernode?style=social)](https://github.com/SirEmil/partnernode/watchers)
+
+</div>
