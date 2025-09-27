@@ -77,8 +77,12 @@ const normalizeOkResponse = (text: string): boolean => {
 // Function to find the original SMS by contact number and recent timestamp
 const findOriginalSMS = async (contactNumber: string, responseTime: Date) => {
   try {
+    console.log(`🔍 Looking for SMS with contact number: "${contactNumber}"`);
+    
     // Look for SMS records sent to this contact number in the last 7 days
     const sevenDaysAgo = new Date(responseTime.getTime() - (7 * 24 * 60 * 60 * 1000));
+    
+    console.log(`📅 Searching between ${sevenDaysAgo.toISOString()} and ${responseTime.toISOString()}`);
     
     const smsQuery = await db.collection('smsRecords')
       .where('contactNumber', '==', contactNumber)
@@ -87,13 +91,47 @@ const findOriginalSMS = async (contactNumber: string, responseTime: Date) => {
       .limit(10)
       .get();
     
+    console.log(`📊 Found ${smsQuery.size} SMS records for contact "${contactNumber}"`);
+    
     if (smsQuery.empty) {
-      console.log(`No original SMS found for contact ${contactNumber}`);
+      console.log(`❌ No original SMS found for contact ${contactNumber}`);
+      
+      // Try alternative formats
+      const alternativeFormats = [
+        contactNumber.startsWith('+') ? contactNumber.substring(1) : `+${contactNumber}`,
+        contactNumber.startsWith('47') ? `+${contactNumber}` : contactNumber,
+        contactNumber.startsWith('+47') ? contactNumber.substring(1) : contactNumber
+      ];
+      
+      console.log(`🔄 Trying alternative formats:`, alternativeFormats);
+      
+      for (const altFormat of alternativeFormats) {
+        if (altFormat !== contactNumber) {
+          console.log(`🔍 Trying alternative format: "${altFormat}"`);
+          const altQuery = await db.collection('smsRecords')
+            .where('contactNumber', '==', altFormat)
+            .where('sentAt', '>=', sevenDaysAgo)
+            .orderBy('sentAt', 'desc')
+            .limit(10)
+            .get();
+          
+          if (!altQuery.empty) {
+            console.log(`✅ Found SMS with alternative format "${altFormat}"`);
+            const mostRecentSMS = altQuery.docs[0];
+            return {
+              id: mostRecentSMS.id,
+              ...mostRecentSMS.data()
+            };
+          }
+        }
+      }
+      
       return null;
     }
     
     // Return the most recent SMS (first in the ordered results)
     const mostRecentSMS = smsQuery.docs[0];
+    console.log(`✅ Found original SMS: ${mostRecentSMS.id}`);
     return {
       id: mostRecentSMS.id,
       ...mostRecentSMS.data()
