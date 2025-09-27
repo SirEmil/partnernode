@@ -92,6 +92,16 @@ router.post('/justcall-sms', async (req, res) => {
   try {
     console.log('JustCall webhook received:', JSON.stringify(req.body, null, 2));
     
+    // Handle JustCall webhook validation payload
+    if (req.body.type && req.body.webhook_url) {
+      console.log('JustCall validation payload received');
+      return res.status(200).json({ 
+        status: 'OK', 
+        message: 'Webhook validation successful',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
     // Validate the webhook payload
     const { error, value } = webhookSchema.validate(req.body);
     if (error) {
