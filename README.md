@@ -1,6 +1,8 @@
-# Contract Sender
+# Partnernode - Contract Sender
 
 A professional CRM and SMS automation platform that integrates Pipedrive CRM with JustCall SMS services. Built with Next.js frontend and Express.js backend, designed for deployment on Google Cloud Run.
+
+**CRM integrated system for Partnernode, allows for a way more simple way of sending contracts**
 
 ## 🚀 Features
 
