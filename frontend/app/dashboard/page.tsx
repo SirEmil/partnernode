@@ -142,11 +142,11 @@ export default function Dashboard() {
     }
   };
 
-  // Check for contract confirmations every 10 seconds
+  // Check for contract confirmations every 30 seconds (reduced frequency to avoid rate limiting)
   useEffect(() => {
     if (sentSmsRecords.length === 0) return;
     
-    const interval = setInterval(checkContractConfirmations, 10000);
+    const interval = setInterval(checkContractConfirmations, 30000); // Increased from 10s to 30s
     return () => clearInterval(interval);
   }, [sentSmsRecords.length]);
   const router = useRouter();
