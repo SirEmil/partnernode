@@ -24,7 +24,7 @@ const smsSettingsSchema = Joi.object({
   })
 });
 
-// Get SMS settings
+// Get SMS settings (global - one number for all users)
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const userId = req.user?.uid;
@@ -36,7 +36,8 @@ router.get('/', authenticateToken, async (req, res) => {
       });
     }
     
-    const doc = await db.collection('smsSettings').doc(userId).get();
+    // Get global SMS settings (not user-specific)
+    const doc = await db.collection('smsSettings').doc('global').get();
     
     if (!doc.exists) {
       return res.json({
@@ -62,7 +63,7 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Update SMS settings
+// Update SMS settings (global - one number for all users)
 router.put('/', authenticateToken, async (req, res) => {
   try {
     const userId = req.user?.uid;
@@ -86,15 +87,16 @@ router.put('/', authenticateToken, async (req, res) => {
     
     const { senderNumber } = value;
     
-    // Save to Firestore
-    await db.collection('smsSettings').doc(userId).set({
+    // Save to Firestore as global settings (not user-specific)
+    await db.collection('smsSettings').doc('global').set({
       senderNumber,
+      updatedBy: userId,
       updatedAt: new Date()
     }, { merge: true });
     
     res.json({
       success: true,
-      message: 'SMS settings updated successfully'
+      message: 'Global SMS settings updated successfully'
     });
   } catch (error: any) {
     console.error('Error updating SMS settings:', error);

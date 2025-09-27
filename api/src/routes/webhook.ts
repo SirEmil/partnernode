@@ -89,7 +89,6 @@ const findOriginalSMS = async (contactNumber: string, responseTime: Date) => {
     // Try with "+" prefix first (how we store them in database)
     let smsQuery = await db.collection('smsRecords')
       .where('contactNumber', '==', `+${contactNumber}`)
-      .limit(1)
       .get();
     
     console.log(`📊 Found ${smsQuery.size} SMS records for contact "+${contactNumber}"`);
@@ -99,7 +98,6 @@ const findOriginalSMS = async (contactNumber: string, responseTime: Date) => {
       console.log(`🔄 Trying without "+" prefix: "${contactNumber}"`);
       smsQuery = await db.collection('smsRecords')
         .where('contactNumber', '==', contactNumber)
-        .limit(1)
         .get();
       
       console.log(`📊 Found ${smsQuery.size} SMS records for contact "${contactNumber}"`);
@@ -110,18 +108,54 @@ const findOriginalSMS = async (contactNumber: string, responseTime: Date) => {
       return null;
     }
     
-    // Return the most recent SMS
-    const mostRecentSMS = smsQuery.docs[0];
+    // Convert all documents to objects and sort by timestamp in JavaScript
+    const allSMS = smsQuery.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        contactNumber: data.contactNumber,
+        sentAt: data.sentAt,
+        contractConfirmed: data.contractConfirmed,
+        ...data
+      };
+    });
+    
+    // Sort by sentAt timestamp (most recent first) - handle Firebase timestamps
+    allSMS.sort((a, b) => {
+      let aTime: Date;
+      let bTime: Date;
+      
+      // Handle Firebase Timestamp objects
+      if (a.sentAt && typeof a.sentAt.toDate === 'function') {
+        aTime = a.sentAt.toDate();
+      } else if (a.sentAt instanceof Date) {
+        aTime = a.sentAt;
+      } else {
+        aTime = new Date(a.sentAt || 0);
+      }
+      
+      if (b.sentAt && typeof b.sentAt.toDate === 'function') {
+        bTime = b.sentAt.toDate();
+      } else if (b.sentAt instanceof Date) {
+        bTime = b.sentAt;
+      } else {
+        bTime = new Date(b.sentAt || 0);
+      }
+      
+      return bTime.getTime() - aTime.getTime();
+    });
+    
+    const mostRecentSMS = allSMS[0];
     console.log(`✅ Found most recent SMS: ${mostRecentSMS.id}`);
     console.log(`📱 SMS details:`, {
-      contactNumber: mostRecentSMS.data().contactNumber,
-      sentAt: mostRecentSMS.data().sentAt,
-      contractConfirmed: mostRecentSMS.data().contractConfirmed
+      contactNumber: mostRecentSMS.contactNumber,
+      sentAt: mostRecentSMS.sentAt,
+      contractConfirmed: mostRecentSMS.contractConfirmed,
+      totalSMSFound: allSMS.length,
+      allSMSIds: allSMS.map(sms => sms.id)
     });
-    return {
-      id: mostRecentSMS.id,
-      ...mostRecentSMS.data()
-    };
+    
+    return mostRecentSMS;
     
   } catch (error) {
     console.error('Error finding original SMS:', error);

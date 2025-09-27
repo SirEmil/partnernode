@@ -93,15 +93,16 @@ router.post('/send', authenticateToken, async (req, res) => {
 
     // Get user's configured sender number
     let senderNumber = justcall_number;
-    if (!senderNumber && userId) {
+    if (!senderNumber) {
       try {
-        const smsSettingsDoc = await db.collection('smsSettings').doc(userId).get();
+        // Get global SMS settings (one number for all users)
+        const smsSettingsDoc = await db.collection('smsSettings').doc('global').get();
         if (smsSettingsDoc.exists) {
           const smsSettings = smsSettingsDoc.data();
           senderNumber = smsSettings?.senderNumber;
         }
       } catch (error) {
-        console.error('Error fetching SMS settings:', error);
+        console.error('Error fetching global SMS settings:', error);
       }
     }
 
@@ -180,6 +181,11 @@ router.post('/send', authenticateToken, async (req, res) => {
     // Store SMS record in Firestore
     try {
       console.log('Attempting to save SMS record to Firestore...');
+      
+      console.log('📱 SMS Record Data:');
+      console.log(`  - contact_number: "${contact_number}"`);
+      console.log(`  - senderNumber: "${senderNumber}"`);
+      console.log(`  - messageId: "${messageId}"`);
       
       const smsRecord = {
         // Basic SMS data
@@ -439,6 +445,36 @@ router.patch('/confirm/:firestoreId', authenticateToken, async (req, res) => {
     console.error('Error updating contract confirmation:', error);
     res.status(500).json({
       error: 'Failed to update contract confirmation',
+      message: error.message
+    });
+  }
+});
+
+// Debug endpoint to see all SMS records (for debugging)
+router.get('/debug-records', authenticateToken, async (req, res) => {
+  try {
+    const snapshot = await db.collection('smsRecords')
+      .orderBy('sentAt', 'desc')
+      .limit(10)
+      .get();
+
+    const records = snapshot.docs.map(doc => ({
+      id: doc.id,
+      contactNumber: doc.data().contactNumber,
+      sentAt: doc.data().sentAt?.toDate?.() || doc.data().sentAt,
+      contractConfirmed: doc.data().contractConfirmed || false
+    }));
+
+    res.json({
+      success: true,
+      data: records,
+      total: records.length
+    });
+
+  } catch (error: any) {
+    console.error('Error fetching debug records:', error);
+    res.status(500).json({
+      error: 'Failed to fetch debug records',
       message: error.message
     });
   }

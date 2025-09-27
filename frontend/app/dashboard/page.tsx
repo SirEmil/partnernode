@@ -68,6 +68,29 @@ export default function Dashboard() {
     console.log('manualTemplateData updated:', manualTemplateData);
   }, [manualTemplateData]);
 
+  // Helper function to handle Firebase timestamps
+  const formatFirebaseTimestamp = (timestamp: any): string => {
+    if (!timestamp) return '';
+    
+    // Handle Firebase Timestamp objects
+    if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+      return timestamp.toDate().toLocaleTimeString();
+    }
+    
+    // Handle regular Date objects or date strings
+    if (timestamp instanceof Date) {
+      return timestamp.toLocaleTimeString();
+    }
+    
+    // Handle ISO strings or other date formats
+    try {
+      return new Date(timestamp).toLocaleTimeString();
+    } catch (error) {
+      console.error('Error formatting timestamp:', timestamp, error);
+      return '';
+    }
+  };
+
   // Function to check for contract confirmations
   const checkContractConfirmations = async () => {
     if (sentSmsRecords.length === 0) return;
@@ -907,8 +930,8 @@ export default function Dashboard() {
                                 </p>
                                 <p className="text-xs text-gray-500">
                                   {sms.contractConfirmed 
-                                    ? `Contract confirmed ${sms.contractConfirmedAt ? new Date(sms.contractConfirmedAt).toLocaleTimeString() : ''}`
-                                    : `Sent ${sms.sentAt.toLocaleTimeString()}`
+                                    ? `Contract confirmed ${formatFirebaseTimestamp(sms.contractConfirmedAt)}`
+                                    : `Sent ${formatFirebaseTimestamp(sms.sentAt)}`
                                   }
                                 </p>
                               </div>
