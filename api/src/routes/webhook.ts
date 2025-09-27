@@ -141,15 +141,24 @@ router.post('/justcall-sms', async (req, res) => {
       });
     }
     
+    console.log('🔍 Webhook validation starting...');
+    console.log('🔍 Request body keys:', Object.keys(req.body));
+    console.log('🔍 Has data field:', !!req.body.data);
+    
     // Validate the webhook payload
     const { error, value } = webhookSchema.validate(req.body);
     if (error) {
-      console.error('Webhook validation error:', error.details[0].message);
+      console.error('❌ Webhook validation error:', error.details[0].message);
+      console.error('❌ Full validation error:', error);
       return res.status(400).json({ 
         error: 'Invalid webhook payload',
-        details: error.details[0].message 
+        details: error.details[0].message,
+        received_data: req.body,
+        timestamp: new Date().toISOString()
       });
     }
+    
+    console.log('✅ Webhook validation passed');
     
     const { 
       request_id,
@@ -174,10 +183,21 @@ router.post('/justcall-sms', async (req, res) => {
     
     const body = sms_info.body;
     
+    console.log(`📱 SMS Data extracted:`);
+    console.log(`  - SMS ID: ${smsId}`);
+    console.log(`  - Contact: ${contact_number}`);
+    console.log(`  - Direction: ${direction}`);
+    console.log(`  - Body: "${body}"`);
+    console.log(`  - Date: ${sms_date} ${sms_time}`);
+    
     // Only process inbound messages (responses from customers)
     if (direction !== 'Incoming') {
       console.log('Ignoring outbound message');
-      return res.status(200).json({ message: 'Outbound message ignored' });
+      return res.status(200).json({ 
+        message: 'Outbound message ignored',
+        direction: direction,
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Check if this is an OK response
@@ -189,55 +209,71 @@ router.post('/justcall-sms', async (req, res) => {
     console.log(`  - Is OK response: ${isOkResponse}`);
     
     if (isOkResponse) {
-      console.log(`OK response detected from ${contact_number}: "${body}"`);
+      console.log(`✅ OK response detected from ${contact_number}: "${body}"`);
       
       // Create response time from date and time
       const responseTime = new Date(`${sms_date}T${sms_time}`);
+      console.log(`🕐 Response time: ${responseTime.toISOString()}`);
+      
       const originalSMS = await findOriginalSMS(contact_number, responseTime);
       
       if (originalSMS) {
-        console.log(`Found original SMS: ${originalSMS.id}`);
+        console.log(`✅ Found original SMS: ${originalSMS.id}`);
         
-        // Update the SMS record to mark contract as confirmed
-        await db.collection('smsRecords').doc(originalSMS.id).update({
-          contractConfirmed: true,
-          contractConfirmedAt: responseTime,
-          contractResponse: body,
-          contractResponseId: smsId.toString(),
-          contractResponseRequestId: request_id,
-          updatedAt: new Date()
-        });
-        
-        console.log(`✅ Contract confirmed for SMS ${originalSMS.id}`);
-        
-        // Optional: Send confirmation to admin or log to a separate collection
-        await db.collection('contractConfirmations').add({
-          smsRecordId: originalSMS.id,
-          contactNumber: contact_number,
-          contactName: contact_name,
-          responseMessage: body,
-          responseId: smsId.toString(),
-          responseRequestId: request_id,
-          confirmedAt: responseTime,
-          createdAt: new Date()
-        });
-        
-        return res.status(200).json({ 
-          message: 'Contract confirmed successfully',
-          smsId: originalSMS.id,
-          confirmed: true
-        });
+        try {
+          // Update the SMS record to mark contract as confirmed
+          await db.collection('smsRecords').doc(originalSMS.id).update({
+            contractConfirmed: true,
+            contractConfirmedAt: responseTime,
+            contractResponse: body,
+            contractResponseId: smsId.toString(),
+            contractResponseRequestId: request_id,
+            updatedAt: new Date()
+          });
+          
+          console.log(`✅ Contract confirmed for SMS ${originalSMS.id}`);
+          
+          // Optional: Send confirmation to admin or log to a separate collection
+          await db.collection('contractConfirmations').add({
+            smsRecordId: originalSMS.id,
+            contactNumber: contact_number,
+            contactName: contact_name,
+            responseMessage: body,
+            responseId: smsId.toString(),
+            responseRequestId: request_id,
+            confirmedAt: responseTime,
+            createdAt: new Date()
+          });
+          
+          return res.status(200).json({ 
+            message: 'Contract confirmed successfully',
+            smsId: originalSMS.id,
+            confirmed: true,
+            timestamp: new Date().toISOString()
+          });
+          
+        } catch (dbError: any) {
+          console.error('❌ Database update error:', dbError);
+          return res.status(500).json({
+            error: 'Failed to update SMS record',
+            message: dbError.message,
+            smsId: originalSMS.id,
+            timestamp: new Date().toISOString()
+          });
+        }
         
       } else {
-        console.log(`No original SMS found for OK response from ${contact_number}`);
-        return res.status(200).json({ 
+        console.log(`❌ No original SMS found for OK response from ${contact_number}`);
+        return res.status(404).json({ 
           message: 'OK response received but no original SMS found',
-          confirmed: false
+          contactNumber: contact_number,
+          confirmed: false,
+          timestamp: new Date().toISOString()
         });
       }
       
     } else {
-      console.log(`Non-OK response from ${contact_number}: "${body}"`);
+      console.log(`ℹ️ Non-OK response from ${contact_number}: "${body}"`);
       
       // Still try to find the original SMS for logging purposes
       const responseTime = new Date(`${sms_date}T${sms_time}`);
@@ -260,15 +296,19 @@ router.post('/justcall-sms', async (req, res) => {
       
       return res.status(200).json({ 
         message: 'Response received but not an OK confirmation',
-        confirmed: false
+        body: body,
+        confirmed: false,
+        timestamp: new Date().toISOString()
       });
     }
     
   } catch (error: any) {
-    console.error('Webhook processing error:', error);
+    console.error('❌ Webhook processing error:', error);
     res.status(500).json({ 
       error: 'Internal server error',
-      message: error.message 
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
     });
   }
 });
