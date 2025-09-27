@@ -144,9 +144,25 @@ router.post('/send', authenticateToken, async (req, res) => {
     });
 
     console.log('JustCall API response:', response.data);
+    console.log('JustCall API response structure:', {
+      hasId: !!response.data.id,
+      hasData: !!response.data.data,
+      hasStatus: !!response.data.status,
+      responseKeys: Object.keys(response.data)
+    });
 
-    // Check if SMS was sent successfully
-    if (!response.data.id) {
+    // Check if SMS was sent successfully - handle different response formats
+    let messageId = response.data.id;
+    let deliveryStatus = response.data.delivery_status || response.data.status;
+    
+    // Handle case where message ID might be in data array
+    if (!messageId && response.data.data && Array.isArray(response.data.data) && response.data.data.length > 0) {
+      messageId = response.data.data[0].id;
+      deliveryStatus = response.data.data[0].delivery_status || response.data.data[0].status;
+      console.log('Found message ID in data array:', messageId);
+    }
+
+    if (!messageId) {
       console.error('❌ JustCall API did not return a message ID:', response.data);
       return res.status(500).json({
         error: 'Failed to send SMS',
@@ -157,8 +173,8 @@ router.post('/send', authenticateToken, async (req, res) => {
 
     const smsResponse: SmsResponse = {
       success: true,
-      message_id: response.data.id?.toString(),
-      status: response.data.delivery_status || 'sent'
+      message_id: messageId?.toString(),
+      status: deliveryStatus || 'sent'
     };
 
     // Store SMS record in Firestore
@@ -167,12 +183,12 @@ router.post('/send', authenticateToken, async (req, res) => {
       
       const smsRecord = {
         // Basic SMS data
-        messageId: response.data.id?.toString(),
+        messageId: messageId?.toString(),
         contactNumber: contact_number,
         senderNumber: senderNumber,
         originalMessage: body,
         processedMessage: processedMessage,
-        status: response.data.delivery_status || 'sent',
+        status: deliveryStatus || 'sent',
         
         // Template data (if used)
         templateData: templateData || null,
