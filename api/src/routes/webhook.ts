@@ -79,17 +79,29 @@ const findOriginalSMS = async (contactNumber: string, responseTime: Date) => {
   try {
     console.log(`🔍 Looking for SMS with contact number: "${contactNumber}"`);
     
-    // Simple query: get all SMS for this contact number, ordered by most recent
-    const smsQuery = await db.collection('smsRecords')
-      .where('contactNumber', '==', contactNumber)
+    // Try with "+" prefix first (how we store them in database)
+    let smsQuery = await db.collection('smsRecords')
+      .where('contactNumber', '==', `+${contactNumber}`)
       .orderBy('sentAt', 'desc')
-      .limit(1)  // Just get the most recent one
+      .limit(1)
       .get();
     
-    console.log(`📊 Found ${smsQuery.size} SMS records for contact "${contactNumber}"`);
+    console.log(`📊 Found ${smsQuery.size} SMS records for contact "+${contactNumber}"`);
+    
+    // If not found, try without "+" prefix
+    if (smsQuery.empty) {
+      console.log(`🔄 Trying without "+" prefix: "${contactNumber}"`);
+      smsQuery = await db.collection('smsRecords')
+        .where('contactNumber', '==', contactNumber)
+        .orderBy('sentAt', 'desc')
+        .limit(1)
+        .get();
+      
+      console.log(`📊 Found ${smsQuery.size} SMS records for contact "${contactNumber}"`);
+    }
     
     if (smsQuery.empty) {
-      console.log(`❌ No SMS found for contact ${contactNumber}`);
+      console.log(`❌ No SMS found for contact ${contactNumber} (tried both +${contactNumber} and ${contactNumber})`);
       return null;
     }
     
