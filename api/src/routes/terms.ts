@@ -40,10 +40,7 @@ const updateTermsSchema = Joi.object({
 // Get all terms
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user?.uid;
-    
     const snapshot = await db.collection('terms')
-      .where('createdBy', '==', userId)
       .get();
 
     const terms: Terms[] = [];
@@ -69,8 +66,6 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.uid;
-
     const doc = await db.collection('terms').doc(id).get();
     
     if (!doc.exists) {
@@ -78,10 +73,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
     }
 
     const terms = doc.data() as Terms;
-    
-    if (terms.createdBy !== userId) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
 
     res.json({
       success: true,

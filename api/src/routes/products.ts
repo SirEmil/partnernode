@@ -49,10 +49,7 @@ const updateProductSchema = Joi.object({
 // Get all products
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user?.uid;
-    
     const snapshot = await db.collection('products')
-      .where('createdBy', '==', userId)
       .get();
 
     const products: Product[] = [];
@@ -78,8 +75,6 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.uid;
-
     const doc = await db.collection('products').doc(id).get();
     
     if (!doc.exists) {
@@ -87,10 +82,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
     }
 
     const product = doc.data() as Product;
-    
-    if (product.createdBy !== userId) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
 
     res.json({
       success: true,
