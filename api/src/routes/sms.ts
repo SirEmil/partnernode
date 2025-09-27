@@ -79,8 +79,17 @@ router.post('/send', authenticateToken, async (req, res) => {
     const { contact_number, body, justcall_number, media_url, restrict_once, schedule_at, templateData } = value;
     const userId = req.user?.uid;
     
+    console.log('SMS Send Request:', {
+      userId: userId,
+      contactNumber: contact_number,
+      hasTemplateData: !!templateData,
+      templateDataKeys: templateData ? Object.keys(templateData) : []
+    });
+    
     // Process template if templateData is provided
     const processedMessage = templateData ? processTemplate(body, templateData) : body;
+    
+    console.log('Processed message:', processedMessage.substring(0, 100) + '...');
 
     // Get user's configured sender number
     let senderNumber = justcall_number;
@@ -136,6 +145,16 @@ router.post('/send', authenticateToken, async (req, res) => {
 
     console.log('JustCall API response:', response.data);
 
+    // Check if SMS was sent successfully
+    if (!response.data.id) {
+      console.error('❌ JustCall API did not return a message ID:', response.data);
+      return res.status(500).json({
+        error: 'Failed to send SMS',
+        message: 'JustCall API did not return a message ID',
+        details: response.data
+      });
+    }
+
     const smsResponse: SmsResponse = {
       success: true,
       message_id: response.data.id?.toString(),
@@ -144,6 +163,8 @@ router.post('/send', authenticateToken, async (req, res) => {
 
     // Store SMS record in Firestore
     try {
+      console.log('Attempting to save SMS record to Firestore...');
+      
       const smsRecord = {
         // Basic SMS data
         messageId: response.data.id?.toString(),
@@ -187,15 +208,27 @@ router.post('/send', authenticateToken, async (req, res) => {
         scheduleAt: schedule_at || null
       };
 
+      console.log('SMS record data prepared:', {
+        messageId: smsRecord.messageId,
+        userId: smsRecord.userId,
+        contactNumber: smsRecord.contactNumber,
+        hasTemplateData: !!smsRecord.templateData
+      });
+
       // Save to Firestore
       const smsDocRef = await db.collection('smsRecords').add(smsRecord);
-      console.log('SMS record saved to Firestore with ID:', smsDocRef.id);
+      console.log('✅ SMS record saved to Firestore with ID:', smsDocRef.id);
       
       // Add the Firestore document ID to the response
       smsResponse.firestoreId = smsDocRef.id;
       
-    } catch (firestoreError) {
-      console.error('Error saving SMS record to Firestore:', firestoreError);
+    } catch (firestoreError: any) {
+      console.error('❌ Error saving SMS record to Firestore:', firestoreError);
+      console.error('Firestore error details:', {
+        code: firestoreError.code,
+        message: firestoreError.message,
+        stack: firestoreError.stack
+      });
       // Don't fail the SMS send if Firestore save fails
     }
 
