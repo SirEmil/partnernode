@@ -72,19 +72,29 @@ export default function Dashboard() {
   const formatFirebaseTimestamp = (timestamp: any): string => {
     if (!timestamp) return '';
     
-    // Handle Firebase Timestamp objects
-    if (timestamp.toDate && typeof timestamp.toDate === 'function') {
-      return timestamp.toDate().toLocaleTimeString();
-    }
-    
-    // Handle regular Date objects or date strings
-    if (timestamp instanceof Date) {
-      return timestamp.toLocaleTimeString();
-    }
-    
-    // Handle ISO strings or other date formats
     try {
-      return new Date(timestamp).toLocaleTimeString();
+      let date: Date;
+      
+      // Handle Firebase Timestamp objects
+      if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+        date = timestamp.toDate();
+      }
+      // Handle regular Date objects
+      else if (timestamp instanceof Date) {
+        date = timestamp;
+      }
+      // Handle ISO strings or other date formats
+      else {
+        date = new Date(timestamp);
+      }
+      
+      // Check if the date is valid
+      if (isNaN(date.getTime())) {
+        console.error('Invalid timestamp:', timestamp);
+        return '';
+      }
+      
+      return date.toLocaleTimeString();
     } catch (error) {
       console.error('Error formatting timestamp:', timestamp, error);
       return '';

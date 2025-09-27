@@ -538,7 +538,7 @@ router.get('/records', authenticateToken, async (req, res) => {
         processedMessage: recordData.processedMessage,
         status: recordData.status,
         contractConfirmed: recordData.contractConfirmed || false,
-        contractConfirmedAt: recordData.contractConfirmedAt,
+        contractConfirmedAt: recordData.contractConfirmedAt?.toDate?.() || recordData.contractConfirmedAt,
         customerName: recordData.customerName,
         companyName: recordData.companyName,
         organizationNumber: recordData.organizationNumber,
