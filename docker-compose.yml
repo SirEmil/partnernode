@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  api:
+    build: ./api
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - JWT_SECRET=your-jwt-secret-key-here
+      - PIPEDRIVE_API_TOKEN=your-pipedrive-token
+      - JUSTCALL_API_TOKEN=your-justcall-token
+      - JUSTCALL_DEFAULT_FROM_NUMBER=your-default-phone-number
+      - FRONTEND_URL=http://localhost:3000
+    volumes:
+      - ./api:/app
+      - /app/node_modules
+    command: npm run dev
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+    depends_on:
+      - api
