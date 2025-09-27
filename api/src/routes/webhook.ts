@@ -189,7 +189,7 @@ router.post('/justcall-sms', async (req, res) => {
           smsRecordId: originalSMS.id,
           contactNumber: contact_number,
           responseMessage: body,
-          responseId: id,
+          responseId: smsId.toString(),
           confirmedAt: responseTime,
           createdAt: new Date()
         });
@@ -212,7 +212,7 @@ router.post('/justcall-sms', async (req, res) => {
       console.log(`Non-OK response from ${contact_number}: "${body}"`);
       
       // Still try to find the original SMS for logging purposes
-      const responseTime = new Date(created_at);
+      const responseTime = new Date(`${sms_date}T${sms_time}`);
       const originalSMS = await findOriginalSMS(contact_number, responseTime);
       
       if (originalSMS) {
@@ -221,7 +221,7 @@ router.post('/justcall-sms', async (req, res) => {
           smsRecordId: originalSMS.id,
           contactNumber: contact_number,
           responseMessage: body,
-          responseId: id,
+          responseId: smsId.toString(),
           isOkResponse: false,
           receivedAt: responseTime,
           createdAt: new Date()
@@ -310,7 +310,7 @@ router.post('/justcall-sms-v2', async (req, res) => {
       console.log(`OK response detected from ${contact_number}: "${body}" (v2)`);
       
       // Find the original SMS that this is responding to
-      const responseTime = new Date(created_at);
+      const responseTime = new Date(`${sms_date}T${sms_time}`);
       const originalSMS = await findOriginalSMS(contact_number, responseTime);
       
       if (originalSMS) {
@@ -321,7 +321,7 @@ router.post('/justcall-sms-v2', async (req, res) => {
           contractConfirmed: true,
           contractConfirmedAt: responseTime,
           contractResponse: body,
-          contractResponseId: id,
+          contractResponseId: smsId.toString(),
           updatedAt: new Date()
         });
         
@@ -332,7 +332,7 @@ router.post('/justcall-sms-v2', async (req, res) => {
           smsRecordId: originalSMS.id,
           contactNumber: contact_number,
           responseMessage: body,
-          responseId: id,
+          responseId: smsId.toString(),
           confirmedAt: responseTime,
           createdAt: new Date()
         });
@@ -355,7 +355,7 @@ router.post('/justcall-sms-v2', async (req, res) => {
       console.log(`Non-OK response from ${contact_number}: "${body}" (v2)`);
       
       // Still try to find the original SMS for logging purposes
-      const responseTime = new Date(created_at);
+      const responseTime = new Date(`${sms_date}T${sms_time}`);
       const originalSMS = await findOriginalSMS(contact_number, responseTime);
       
       if (originalSMS) {
@@ -364,7 +364,7 @@ router.post('/justcall-sms-v2', async (req, res) => {
           smsRecordId: originalSMS.id,
           contactNumber: contact_number,
           responseMessage: body,
-          responseId: id,
+          responseId: smsId.toString(),
           isOkResponse: false,
           receivedAt: responseTime,
           createdAt: new Date()
