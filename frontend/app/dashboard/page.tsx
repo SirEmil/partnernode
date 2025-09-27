@@ -51,11 +51,71 @@ export default function Dashboard() {
     email: '',
     date: ''
   });
+  
+  // SMS tracking state
+  const [sentSmsRecords, setSentSmsRecords] = useState<Array<{
+    id: string;
+    firestoreId: string;
+    contactNumber: string;
+    message: string;
+    sentAt: Date;
+    contractConfirmed: boolean;
+    contractConfirmedAt?: Date;
+  }>>([]);
 
   // Debug: Log when manualTemplateData changes
   useEffect(() => {
     console.log('manualTemplateData updated:', manualTemplateData);
   }, [manualTemplateData]);
+
+  // Function to check for contract confirmations
+  const checkContractConfirmations = async () => {
+    if (sentSmsRecords.length === 0) return;
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      
+      // Get all SMS records for this user
+      const response = await fetch(`${API_BASE_URL}/api/sms/records`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        const confirmedRecords = result.data || [];
+        
+        // Update local state with confirmed contracts
+        setSentSmsRecords(prev => prev.map(sms => {
+          const confirmedRecord = confirmedRecords.find((record: any) => 
+            record.firestoreId === sms.firestoreId || 
+            record.contactNumber === sms.contactNumber
+          );
+          
+          if (confirmedRecord && confirmedRecord.contractConfirmed && !sms.contractConfirmed) {
+            return {
+              ...sms,
+              contractConfirmed: true,
+              contractConfirmedAt: confirmedRecord.contractConfirmedAt
+            };
+          }
+          return sms;
+        }));
+      }
+    } catch (error) {
+      console.log('Error checking contract confirmations:', error);
+    }
+  };
+
+  // Check for contract confirmations every 10 seconds
+  useEffect(() => {
+    if (sentSmsRecords.length === 0) return;
+    
+    const interval = setInterval(checkContractConfirmations, 10000);
+    return () => clearInterval(interval);
+  }, [sentSmsRecords.length]);
   const router = useRouter();
 
   useEffect(() => {
@@ -195,7 +255,21 @@ export default function Dashboard() {
       });
 
       if (response.ok) {
+        const result = await response.json();
         toast.success('SMS sent successfully!');
+        
+        // Store SMS record for tracking
+        const smsRecord = {
+          id: result.message_id || Date.now().toString(),
+          firestoreId: result.firestoreId || '',
+          contactNumber: smsPhone,
+          message: selectedProduct.smsTemplate,
+          sentAt: new Date(),
+          contractConfirmed: false
+        };
+        
+        setSentSmsRecords(prev => [smsRecord, ...prev]);
+        
         setSmsPhone('');
         setSelectedLead(null);
         setSelectedProduct(null);
@@ -803,6 +877,46 @@ export default function Dashboard() {
                         </>
                       )}
                     </button>
+                    
+                    {/* Contract Confirmation Tracker */}
+                    {sentSmsRecords.length > 0 && (
+                      <div className="mt-4">
+                        <h4 className="text-sm font-medium text-gray-700 mb-3">Recent SMS Status</h4>
+                        <div className="space-y-2">
+                          {sentSmsRecords.slice(0, 5).map((sms) => (
+                            <div key={sms.id} className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
+                              {/* Status Square */}
+                              <div className="flex-shrink-0">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                  sms.contractConfirmed 
+                                    ? 'bg-green-100 border-2 border-green-500' 
+                                    : 'bg-gray-100 border-2 border-gray-300'
+                                }`}>
+                                  {sms.contractConfirmed ? (
+                                    <CheckCircle className="w-5 h-5 text-green-600" />
+                                  ) : (
+                                    <Clock className="w-4 h-4 text-gray-500" />
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* SMS Info */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {sms.contactNumber}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {sms.contractConfirmed 
+                                    ? `Contract confirmed ${sms.contractConfirmedAt ? new Date(sms.contractConfirmedAt).toLocaleTimeString() : ''}`
+                                    : `Sent ${sms.sentAt.toLocaleTimeString()}`
+                                  }
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Button Status Info */}
                     <div className="mt-3 text-center">

@@ -13,13 +13,13 @@ const webhookSchema = Joi.object({
   data: Joi.object({
     id: Joi.number().required(),
     contact_number: Joi.string().required(),
-    contact_name: Joi.string().optional(),
-    contact_email: Joi.string().optional(),
+    contact_name: Joi.string().allow('').optional(),
+    contact_email: Joi.string().allow('').optional(),
     justcall_number: Joi.string().required(),
-    justcall_line_name: Joi.string().optional(),
+    justcall_line_name: Joi.string().allow('').optional(),
     agent_id: Joi.number().optional(),
-    agent_name: Joi.string().optional(),
-    agent_email: Joi.string().optional(),
+    agent_name: Joi.string().allow('').optional(),
+    agent_email: Joi.string().allow('').optional(),
     sms_date: Joi.string().required(),
     sms_user_date: Joi.string().required(),
     sms_time: Joi.string().required(),
@@ -28,12 +28,12 @@ const webhookSchema = Joi.object({
     cost_incurred: Joi.number().optional(),
     sms_info: Joi.object({
       body: Joi.string().required(),
-      is_mms: Joi.string().optional(),
+      is_mms: Joi.string().allow('').optional(),
       mms: Joi.array().optional()
     }).required(),
     delivery_status: Joi.string().required(),
     is_deleted: Joi.boolean().optional(),
-    medium: Joi.string().optional()
+    medium: Joi.string().allow('').optional()
   }).required()
 });
 
