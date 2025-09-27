@@ -210,4 +210,14 @@ router.get('/justcall-sms/health', (req, res) => {
   });
 });
 
+// JustCall webhook validation endpoint (GET request)
+router.get('/justcall-sms', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    message: 'JustCall webhook endpoint is ready',
+    endpoint: 'POST /api/webhook/justcall-sms',
+    timestamp: new Date().toISOString()
+  });
+});
+
 export default router;
