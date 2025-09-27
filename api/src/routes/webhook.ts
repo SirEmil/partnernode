@@ -89,7 +89,6 @@ const findOriginalSMS = async (contactNumber: string, responseTime: Date) => {
     // Try with "+" prefix first (how we store them in database)
     let smsQuery = await db.collection('smsRecords')
       .where('contactNumber', '==', `+${contactNumber}`)
-      .orderBy('sentAt', 'desc')
       .limit(1)
       .get();
     
@@ -100,7 +99,6 @@ const findOriginalSMS = async (contactNumber: string, responseTime: Date) => {
       console.log(`🔄 Trying without "+" prefix: "${contactNumber}"`);
       smsQuery = await db.collection('smsRecords')
         .where('contactNumber', '==', contactNumber)
-        .orderBy('sentAt', 'desc')
         .limit(1)
         .get();
       
@@ -115,6 +113,11 @@ const findOriginalSMS = async (contactNumber: string, responseTime: Date) => {
     // Return the most recent SMS
     const mostRecentSMS = smsQuery.docs[0];
     console.log(`✅ Found most recent SMS: ${mostRecentSMS.id}`);
+    console.log(`📱 SMS details:`, {
+      contactNumber: mostRecentSMS.data().contactNumber,
+      sentAt: mostRecentSMS.data().sentAt,
+      contractConfirmed: mostRecentSMS.data().contractConfirmed
+    });
     return {
       id: mostRecentSMS.id,
       ...mostRecentSMS.data()
