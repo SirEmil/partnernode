@@ -10,12 +10,19 @@ const api = axios.create({
   },
 });
 
-// Add auth token to requests
+// Add request interceptor to mask sensitive data in logs
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('authToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  
+  // Mask password in request data for logging (doesn't affect actual request)
+  if (config.data && config.data.password) {
+    const maskedData = { ...config.data, password: '***MASKED***' };
+    console.log('API Request:', config.url, maskedData);
+  }
+  
   return config;
 });
 
