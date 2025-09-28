@@ -31,12 +31,17 @@ const sseClients = new Map<string, SSEClient>();
 
 // Function to send updates to specific clients viewing a particular SMS
 export const sendSSEUpdate = (smsId: string, data: any) => {
+  const startTime = Date.now();
   console.log(`📡 Broadcasting SSE update for SMS ${smsId}:`, data);
+  
+  let clientsNotified = 0;
+  const message = `data: ${JSON.stringify(data)}\n\n`;
   
   sseClients.forEach((client, clientId) => {
     if (client.viewingSmsId === smsId) {
       try {
-        client.res.write(`data: ${JSON.stringify(data)}\n\n`);
+        client.res.write(message);
+        clientsNotified++;
         console.log(`✅ Sent SSE update to client ${clientId} viewing SMS ${smsId}`);
       } catch (error) {
         console.error(`❌ Error sending SSE to client ${clientId}:`, error);
@@ -44,6 +49,9 @@ export const sendSSEUpdate = (smsId: string, data: any) => {
       }
     }
   });
+  
+  const updateTime = Date.now() - startTime;
+  console.log(`📡 SSE update completed: ${clientsNotified} clients notified in ${updateTime}ms`);
 };
 
 const app = express();
@@ -87,7 +95,15 @@ app.get('/api/sse', (req: express.Request, res: express.Response) => {
   const userId = req.query.userId as string;
   const viewingSmsId = req.query.viewingSmsId as string;
   
+  console.log(`🔌 SSE connection attempt:`, {
+    userId,
+    viewingSmsId,
+    userAgent: req.headers['user-agent'],
+    ip: req.ip
+  });
+  
   if (!userId) {
+    console.error('❌ SSE connection failed: No userId provided');
     return res.status(401).json({ error: 'User ID required' });
   }
 

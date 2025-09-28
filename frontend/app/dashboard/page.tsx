@@ -176,13 +176,25 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user || !sentSmsRecords.length) return;
 
+    // Check if user has required fields
+    if (!user.uid) {
+      console.error('❌ User object missing uid:', user);
+      return;
+    }
+
     const latestSmsId = sentSmsRecords[0]?.firestoreId; // Most recent SMS
     if (!latestSmsId) return;
 
-    console.log(`🔌 Connecting to SSE for SMS: ${latestSmsId}`);
+    console.log(`🔌 Connecting to SSE for SMS: ${latestSmsId}`, {
+      userId: user.uid,
+      userEmail: user.email,
+      authLevel: user.authLevel,
+      latestSmsId
+    });
 
     // EventSource doesn't support custom headers, so we'll pass them as query params
     const sseUrl = `/api/sse?userId=${encodeURIComponent(user.uid)}&viewingSmsId=${encodeURIComponent(latestSmsId)}`;
+    console.log(`🔌 SSE URL: ${sseUrl}`);
     const eventSource = new EventSource(sseUrl);
 
     eventSource.onmessage = (event) => {
@@ -217,11 +229,16 @@ export default function Dashboard() {
 
     eventSource.onerror = (error) => {
       console.error('SSE connection error:', error);
+      console.error('SSE connection state:', eventSource.readyState);
+      console.error('SSE URL that failed:', sseUrl);
+      
+      // If SSE fails, fall back to polling more frequently
+      console.log('🔄 SSE failed, falling back to frequent polling');
       eventSource.close();
     };
 
     eventSource.onopen = () => {
-      console.log('🔌 SSE connection opened');
+      console.log('🔌 SSE connection opened successfully');
     };
 
     return () => {

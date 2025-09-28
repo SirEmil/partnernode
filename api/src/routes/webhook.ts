@@ -85,31 +85,39 @@ const normalizeOkResponse = (text: string): boolean => {
 const findOriginalSMS = async (contactNumber: string, responseTime: Date) => {
   try {
     console.log(`🔍 Looking for SMS with contact number: "${contactNumber}"`);
+    const startTime = Date.now();
     
-    // Try with "+" prefix first (how we store them in database)
-    let smsQuery = await db.collection('smsRecords')
-      .where('contactNumber', '==', `+${contactNumber}`)
-      .get();
+    // Calculate time window (look for SMS sent within last 24 hours)
+    const timeWindow = new Date(responseTime.getTime() - (24 * 60 * 60 * 1000));
     
-    console.log(`📊 Found ${smsQuery.size} SMS records for contact "+${contactNumber}"`);
-    
-    // If not found, try without "+" prefix
-    if (smsQuery.empty) {
-      console.log(`🔄 Trying without "+" prefix: "${contactNumber}"`);
-      smsQuery = await db.collection('smsRecords')
+    // Run both queries in parallel for better performance
+    const [queryWithPlus, queryWithoutPlus] = await Promise.all([
+      db.collection('smsRecords')
+        .where('contactNumber', '==', `+${contactNumber}`)
+        .where('sentAt', '>=', timeWindow)
+        .orderBy('sentAt', 'desc')
+        .limit(10) // Only get recent SMS
+        .get(),
+      db.collection('smsRecords')
         .where('contactNumber', '==', contactNumber)
-        .get();
-      
-      console.log(`📊 Found ${smsQuery.size} SMS records for contact "${contactNumber}"`);
-    }
+        .where('sentAt', '>=', timeWindow)
+        .orderBy('sentAt', 'desc')
+        .limit(10) // Only get recent SMS
+        .get()
+    ]);
     
-    if (smsQuery.empty) {
-      console.log(`❌ No SMS found for contact ${contactNumber} (tried both +${contactNumber} and ${contactNumber})`);
+    console.log(`📊 Found ${queryWithPlus.size} SMS records for "+${contactNumber}" and ${queryWithoutPlus.size} for "${contactNumber}"`);
+    
+    // Combine results and get the most recent
+    const allSMS = [...queryWithPlus.docs, ...queryWithoutPlus.docs];
+    
+    if (allSMS.length === 0) {
+      console.log(`❌ No SMS found for contact ${contactNumber} in the last 24 hours`);
       return null;
     }
     
-    // Convert all documents to objects and sort by timestamp in JavaScript
-    const allSMS = smsQuery.docs.map(doc => {
+    // Convert all documents to objects and get the most recent
+    const smsData = allSMS.map(doc => {
       const data = doc.data();
       return {
         id: doc.id,
@@ -121,7 +129,7 @@ const findOriginalSMS = async (contactNumber: string, responseTime: Date) => {
     });
     
     // Sort by sentAt timestamp (most recent first) - handle Firebase timestamps
-    allSMS.sort((a, b) => {
+    smsData.sort((a, b) => {
       let aTime: Date;
       let bTime: Date;
       
@@ -145,14 +153,16 @@ const findOriginalSMS = async (contactNumber: string, responseTime: Date) => {
       return bTime.getTime() - aTime.getTime();
     });
     
-    const mostRecentSMS = allSMS[0];
-    console.log(`✅ Found most recent SMS: ${mostRecentSMS.id}`);
+    const mostRecentSMS = smsData[0];
+    const queryTime = Date.now() - startTime;
+    
+    console.log(`✅ Found most recent SMS: ${mostRecentSMS.id} (query took ${queryTime}ms)`);
     console.log(`📱 SMS details:`, {
       contactNumber: mostRecentSMS.contactNumber,
       sentAt: mostRecentSMS.sentAt,
       contractConfirmed: mostRecentSMS.contractConfirmed,
-      totalSMSFound: allSMS.length,
-      allSMSIds: allSMS.map(sms => sms.id)
+      totalSMSFound: smsData.length,
+      queryTimeMs: queryTime
     });
     
     return mostRecentSMS;
@@ -247,6 +257,7 @@ router.post('/justcall-sms', async (req, res) => {
     
     if (isOkResponse) {
       console.log(`✅ OK response detected from ${contact_number}: "${body}"`);
+      const webhookStartTime = Date.now();
       
       // Create response time from date and time
       const responseTime = new Date(`${sms_date}T${sms_time}`);
@@ -258,6 +269,7 @@ router.post('/justcall-sms', async (req, res) => {
         console.log(`✅ Found original SMS: ${originalSMS.id}`);
         
         try {
+          const dbUpdateStartTime = Date.now();
           // Update the SMS record to mark contract as confirmed
           await db.collection('smsRecords').doc(originalSMS.id).update({
             contractConfirmed: true,
@@ -267,8 +279,12 @@ router.post('/justcall-sms', async (req, res) => {
             contractResponseRequestId: request_id,
             updatedAt: new Date()
           });
+          
+          const dbUpdateTime = Date.now() - dbUpdateStartTime;
+          console.log(`💾 Database update completed in ${dbUpdateTime}ms`);
 
           // Send real-time update to clients viewing this SMS
+          const sseStartTime = Date.now();
           const { sendSSEUpdate } = require('../index');
           if (sendSSEUpdate) {
             sendSSEUpdate(originalSMS.id, {
@@ -278,10 +294,12 @@ router.post('/justcall-sms', async (req, res) => {
               confirmedAt: responseTime,
               response: body
             });
-            console.log(`📡 Sent SSE update for contract confirmation: ${originalSMS.id}`);
+            const sseTime = Date.now() - sseStartTime;
+            console.log(`📡 SSE update sent in ${sseTime}ms for SMS: ${originalSMS.id}`);
           }
           
-          console.log(`✅ Contract confirmed for SMS ${originalSMS.id}`);
+          const totalWebhookTime = Date.now() - webhookStartTime;
+          console.log(`✅ Contract confirmed for SMS ${originalSMS.id} - Total processing time: ${totalWebhookTime}ms`);
           
           // Optional: Send confirmation to admin or log to a separate collection
           await db.collection('contractConfirmations').add({
