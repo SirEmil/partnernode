@@ -174,7 +174,22 @@ export default function Dashboard() {
 
   // SSE connection for real-time contract confirmations
   useEffect(() => {
-    if (!user || !sentSmsRecords.length) return;
+    console.log('🔌 SSE useEffect triggered:', {
+      user: !!user,
+      userUid: user?.uid,
+      userAuthLevel: user?.authLevel,
+      sentSmsRecordsLength: sentSmsRecords.length,
+      sentSmsRecords: sentSmsRecords
+    });
+
+    if (!user || !sentSmsRecords.length) {
+      console.log('🔌 SSE connection skipped:', {
+        reason: !user ? 'No user' : 'No SMS records',
+        user: !!user,
+        sentSmsRecordsLength: sentSmsRecords.length
+      });
+      return;
+    }
 
     // Check if user has required fields
     if (!user.uid) {
