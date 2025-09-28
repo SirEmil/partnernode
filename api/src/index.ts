@@ -19,6 +19,33 @@ import termsRoutes from './routes/terms';
 import smsSettingsRoutes from './routes/sms-settings';
 import webhookRoutes from './routes/webhook';
 
+// SSE (Server-Sent Events) for real-time updates
+interface SSEClient {
+  id: string;
+  userId: string;
+  res: express.Response;
+  viewingSmsId?: string; // Track which SMS the client is viewing
+}
+
+const sseClients = new Map<string, SSEClient>();
+
+// Function to send updates to specific clients viewing a particular SMS
+export const sendSSEUpdate = (smsId: string, data: any) => {
+  console.log(`📡 Broadcasting SSE update for SMS ${smsId}:`, data);
+  
+  sseClients.forEach((client, clientId) => {
+    if (client.viewingSmsId === smsId) {
+      try {
+        client.res.write(`data: ${JSON.stringify(data)}\n\n`);
+        console.log(`✅ Sent SSE update to client ${clientId} viewing SMS ${smsId}`);
+      } catch (error) {
+        console.error(`❌ Error sending SSE to client ${clientId}:`, error);
+        sseClients.delete(clientId);
+      }
+    }
+  });
+};
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -54,6 +81,50 @@ app.get('/health', (req, res) => {
     service: 'contract-sender-api'
   });
 });
+
+// SSE endpoint for real-time updates
+app.get('/api/sse', (req: express.Request, res: express.Response) => {
+  const userId = req.query.userId as string;
+  const viewingSmsId = req.query.viewingSmsId as string;
+  
+  if (!userId) {
+    return res.status(401).json({ error: 'User ID required' });
+  }
+
+  const clientId = `${userId}-${Date.now()}`;
+  
+  // Set SSE headers
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Cache-Control',
+  });
+
+  // Send initial connection message
+  res.write(`data: ${JSON.stringify({ type: 'connected', clientId })}\n\n`);
+
+  // Store client
+  sseClients.set(clientId, {
+    id: clientId,
+    userId,
+    res,
+    viewingSmsId
+  });
+
+  console.log(`🔌 SSE client connected: ${clientId}, viewing SMS: ${viewingSmsId || 'none'}`);
+
+  // Handle client disconnect
+  req.on('close', () => {
+    console.log(`🔌 SSE client disconnected: ${clientId}`);
+    sseClients.delete(clientId);
+  });
+});
+
+// Make SSE clients accessible to other routes
+app.locals.sseClients = sseClients;
+app.locals.sendSSEUpdate = sendSSEUpdate;
 
 // API routes
 app.use('/api/auth', authRoutes);

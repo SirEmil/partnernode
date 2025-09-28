@@ -151,6 +151,64 @@ export default function Dashboard() {
   }, [sentSmsRecords.length]);
   const router = useRouter();
 
+  // SSE connection for real-time contract confirmations
+  useEffect(() => {
+    if (!user || !sentSmsRecords.length) return;
+
+    const latestSmsId = sentSmsRecords[0]?.firestoreId; // Most recent SMS
+    if (!latestSmsId) return;
+
+    console.log(`🔌 Connecting to SSE for SMS: ${latestSmsId}`);
+
+    // EventSource doesn't support custom headers, so we'll pass them as query params
+    const sseUrl = `/api/sse?userId=${encodeURIComponent(user.uid)}&viewingSmsId=${encodeURIComponent(latestSmsId)}`;
+    const eventSource = new EventSource(sseUrl);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('📡 SSE message received:', data);
+
+        if (data.type === 'contract_confirmed' && data.smsId === latestSmsId) {
+          console.log('✅ Contract confirmed via SSE!', data);
+          
+          // Update the SMS record immediately
+          setSentSmsRecords(prev => prev.map(sms => 
+            sms.firestoreId === data.smsId 
+              ? { 
+                  ...sms, 
+                  contractConfirmed: true, 
+                  contractConfirmedAt: new Date(data.confirmedAt) 
+                }
+              : sms
+          ));
+
+          // Show success toast
+          toast.success(`Contract confirmed by ${data.contactNumber}!`, {
+            duration: 5000,
+            icon: '✅'
+          });
+        }
+      } catch (error) {
+        console.error('Error parsing SSE message:', error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('SSE connection error:', error);
+      eventSource.close();
+    };
+
+    eventSource.onopen = () => {
+      console.log('🔌 SSE connection opened');
+    };
+
+    return () => {
+      console.log('🔌 Closing SSE connection');
+      eventSource.close();
+    };
+  }, [user, sentSmsRecords.length, sentSmsRecords[0]?.firestoreId]);
+
   useEffect(() => {
     if (user) {
       fetchProducts();

@@ -11,6 +11,9 @@ export const metadata: Metadata = {
   description: 'Streamline your sales process with integrated CRM and SMS capabilities',
   keywords: 'CRM, SMS, sales, leads, automation, business',
   authors: [{ name: 'Contract Sender Team' }],
+  icons: {
+    icon: '/fav.png',
+  },
 };
 
 export const viewport: Viewport = {

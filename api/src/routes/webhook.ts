@@ -267,6 +267,19 @@ router.post('/justcall-sms', async (req, res) => {
             contractResponseRequestId: request_id,
             updatedAt: new Date()
           });
+
+          // Send real-time update to clients viewing this SMS
+          const { sendSSEUpdate } = require('../index');
+          if (sendSSEUpdate) {
+            sendSSEUpdate(originalSMS.id, {
+              type: 'contract_confirmed',
+              smsId: originalSMS.id,
+              contactNumber: contact_number,
+              confirmedAt: responseTime,
+              response: body
+            });
+            console.log(`📡 Sent SSE update for contract confirmation: ${originalSMS.id}`);
+          }
           
           console.log(`✅ Contract confirmed for SMS ${originalSMS.id}`);
           
