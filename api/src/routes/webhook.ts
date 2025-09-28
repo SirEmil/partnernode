@@ -102,6 +102,7 @@ const findOriginalSMS = async (contactNumber: string, responseTime: Date) => {
     const uniqueFormats = [...new Set(phoneFormats)];
     
     console.log(`🔍 Searching for phone number "${contactNumber}" in formats:`, uniqueFormats);
+    console.log(`🕐 Time window: ${timeWindow.toISOString()} to ${responseTime.toISOString()}`);
     
     // Run queries for all formats in parallel
     const queries = await Promise.all(
