@@ -539,15 +539,18 @@ export default function Dashboard() {
             </div>
             
             <div className="flex items-center space-x-4">
+              {/* SMS Records - Available to all users */}
+              <button
+                onClick={() => router.push('/sms-list')}
+                className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>My SMS Records</span>
+              </button>
+              
+              {/* Admin-only features */}
               {user?.authLevel === 1 && (
                 <>
-                  <button
-                    onClick={() => router.push('/admin')}
-                    className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    <span>SMS Records</span>
-                  </button>
                   <button
                     onClick={() => router.push('/settings')}
                     className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"

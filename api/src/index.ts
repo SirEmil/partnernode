@@ -99,7 +99,10 @@ app.get('/api/sse', (req: express.Request, res: express.Response) => {
     userId,
     viewingSmsId,
     userAgent: req.headers['user-agent'],
-    ip: req.ip
+    ip: req.ip,
+    url: req.url,
+    method: req.method,
+    headers: req.headers
   });
   
   if (!userId) {

@@ -575,4 +575,64 @@ router.get('/records', authenticateToken, async (req, res) => {
   }
 });
 
+// Get user's own SMS records (non-admin)
+router.get('/my-records', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?.uid;
+    
+    if (!userId) {
+      return res.status(401).json({
+        error: 'User not authenticated'
+      });
+    }
+
+    // Get SMS records for this specific user only
+    const smsRecordsSnapshot = await db.collection('smsRecords')
+      .where('userId', '==', userId)
+      .orderBy('sentAt', 'desc')
+      .limit(100) // Limit to prevent large responses
+      .get();
+
+    const records = smsRecordsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        messageId: data.messageId,
+        contactNumber: data.contactNumber,
+        senderNumber: data.senderNumber,
+        originalMessage: data.originalMessage,
+        processedMessage: data.processedMessage,
+        status: data.status,
+        contractConfirmed: data.contractConfirmed,
+        contractConfirmedAt: data.contractConfirmedAt?.toDate?.() || data.contractConfirmedAt,
+        contractResponse: data.contractResponse,
+        customerName: data.customerName,
+        companyName: data.companyName,
+        productName: data.productName,
+        price: data.price,
+        termsUrl: data.termsUrl,
+        sentAt: data.sentAt?.toDate?.() || data.sentAt,
+        createdAt: data.createdAt?.toDate?.() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.() || data.updatedAt
+      };
+    });
+
+    console.log(`📱 Retrieved ${records.length} SMS records for user ${userId}`);
+
+    res.json({
+      success: true,
+      records,
+      count: records.length,
+      userId
+    });
+
+  } catch (error: any) {
+    console.error('Error fetching user SMS records:', error);
+    res.status(500).json({
+      error: 'Failed to fetch SMS records',
+      message: error.message
+    });
+  }
+});
+
 export default router;
