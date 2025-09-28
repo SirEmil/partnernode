@@ -130,8 +130,8 @@ export default function Dashboard() {
       const token = localStorage.getItem('authToken');
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
       
-      // Get all SMS records for this user
-      const response = await fetch(`${API_BASE_URL}/api/sms/records`, {
+      // Get user's own SMS records (not admin endpoint)
+      const response = await fetch(`${API_BASE_URL}/api/sms/my-records`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -139,7 +139,7 @@ export default function Dashboard() {
       
       if (response.ok) {
         const result = await response.json();
-        const confirmedRecords = result.data || [];
+        const confirmedRecords = result.records || [];
         
         // Update local state with confirmed contracts
         setSentSmsRecords(prev => prev.map(sms => {
@@ -163,11 +163,11 @@ export default function Dashboard() {
     }
   };
 
-  // Check for contract confirmations every 30 seconds (reduced frequency to avoid rate limiting)
+  // Check for contract confirmations every 5 seconds (frequent polling for real-time updates)
   useEffect(() => {
     if (sentSmsRecords.length === 0) return;
     
-    const interval = setInterval(checkContractConfirmations, 30000); // Increased from 10s to 30s
+    const interval = setInterval(checkContractConfirmations, 5000); // Poll every 5 seconds for faster updates
     return () => clearInterval(interval);
   }, [sentSmsRecords.length]);
   const router = useRouter();
