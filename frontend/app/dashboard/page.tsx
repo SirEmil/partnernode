@@ -193,7 +193,8 @@ export default function Dashboard() {
     });
 
     // EventSource doesn't support custom headers, so we'll pass them as query params
-    const sseUrl = `/api/sse?userId=${encodeURIComponent(user.uid)}&viewingSmsId=${encodeURIComponent(latestSmsId)}`;
+    const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+    const sseUrl = `${API_BASE_URL}/api/sse?userId=${encodeURIComponent(user.uid)}&viewingSmsId=${encodeURIComponent(latestSmsId)}`;
     console.log(`🔌 SSE URL: ${sseUrl}`);
     const eventSource = new EventSource(sseUrl);
 
