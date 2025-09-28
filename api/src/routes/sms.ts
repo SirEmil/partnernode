@@ -586,10 +586,9 @@ router.get('/my-records', authenticateToken, async (req, res) => {
       });
     }
 
-    // Get SMS records for this specific user only
+    // Get SMS records for this specific user only (no orderBy to avoid index requirement)
     const smsRecordsSnapshot = await db.collection('smsRecords')
       .where('userId', '==', userId)
-      .orderBy('sentAt', 'desc')
       .limit(100) // Limit to prevent large responses
       .get();
 
@@ -615,6 +614,13 @@ router.get('/my-records', authenticateToken, async (req, res) => {
         createdAt: data.createdAt?.toDate?.() || data.createdAt,
         updatedAt: data.updatedAt?.toDate?.() || data.updatedAt
       };
+    });
+
+    // Sort by sentAt in JavaScript (most recent first)
+    records.sort((a, b) => {
+      const aTime = new Date(a.sentAt).getTime();
+      const bTime = new Date(b.sentAt).getTime();
+      return bTime - aTime;
     });
 
     console.log(`📱 Retrieved ${records.length} SMS records for user ${userId}`);

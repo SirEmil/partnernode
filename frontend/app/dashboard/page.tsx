@@ -559,6 +559,13 @@ export default function Dashboard() {
                     <Settings className="w-4 h-4" />
                     <span>Settings</span>
                   </button>
+                  <button
+                    onClick={() => router.push('/admin')}
+                    className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>Admin</span>
+                  </button>
                 </>
               )}
               <div className="flex items-center space-x-2 text-sm text-gray-600">
