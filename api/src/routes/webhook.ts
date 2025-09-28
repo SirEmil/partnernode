@@ -90,30 +90,107 @@ const findOriginalSMS = async (contactNumber: string, responseTime: Date) => {
     // Calculate time window (look for SMS sent within last 24 hours)
     const timeWindow = new Date(responseTime.getTime() - (24 * 60 * 60 * 1000));
     
-    // Run both queries in parallel for better performance
-    const [queryWithPlus, queryWithoutPlus] = await Promise.all([
-      db.collection('smsRecords')
-        .where('contactNumber', '==', `+${contactNumber}`)
-        .where('sentAt', '>=', timeWindow)
-        .orderBy('sentAt', 'desc')
-        .limit(10) // Only get recent SMS
-        .get(),
-      db.collection('smsRecords')
-        .where('contactNumber', '==', contactNumber)
-        .where('sentAt', '>=', timeWindow)
-        .orderBy('sentAt', 'desc')
-        .limit(10) // Only get recent SMS
-        .get()
-    ]);
+    // Try multiple phone number formats
+    const phoneFormats = [
+      `+${contactNumber}`,           // +4741275958
+      contactNumber,                 // 4741275958
+      contactNumber.replace(/^47/, '+47'), // Convert 47 to +47
+      contactNumber.replace(/^\+47/, '47'), // Convert +47 to 47
+    ];
     
-    console.log(`📊 Found ${queryWithPlus.size} SMS records for "+${contactNumber}" and ${queryWithoutPlus.size} for "${contactNumber}"`);
+    // Remove duplicates
+    const uniqueFormats = [...new Set(phoneFormats)];
     
-    // Combine results and get the most recent
-    const allSMS = [...queryWithPlus.docs, ...queryWithoutPlus.docs];
+    console.log(`🔍 Searching for phone number "${contactNumber}" in formats:`, uniqueFormats);
+    
+    // Run queries for all formats in parallel
+    const queries = await Promise.all(
+      uniqueFormats.map(format => 
+        db.collection('smsRecords')
+          .where('contactNumber', '==', format)
+          .where('sentAt', '>=', timeWindow)
+          .orderBy('sentAt', 'desc')
+          .limit(10)
+          .get()
+      )
+    );
+    
+    // Combine all results
+    const allSMS = queries.flatMap(query => query.docs);
+    
+    console.log(`📊 Found ${allSMS.length} total SMS records across all formats`);
     
     if (allSMS.length === 0) {
       console.log(`❌ No SMS found for contact ${contactNumber} in the last 24 hours`);
-      return null;
+      console.log(`🔄 Trying broader search without time window...`);
+      
+      // Fallback: Search without time window
+      const fallbackQueries = await Promise.all(
+        uniqueFormats.map(format => 
+          db.collection('smsRecords')
+            .where('contactNumber', '==', format)
+            .orderBy('sentAt', 'desc')
+            .limit(5)
+            .get()
+        )
+      );
+      
+      const fallbackSMS = fallbackQueries.flatMap(query => query.docs);
+      console.log(`📊 Fallback search found ${fallbackSMS.length} SMS records`);
+      
+      if (fallbackSMS.length === 0) {
+        console.log(`❌ No SMS found for contact ${contactNumber} in entire database`);
+        return null;
+      }
+      
+      // Use fallback results
+      const smsData = fallbackSMS.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          contactNumber: data.contactNumber,
+          sentAt: data.sentAt,
+          contractConfirmed: data.contractConfirmed,
+          ...data
+        };
+      });
+      
+      smsData.sort((a, b) => {
+        let aTime: Date;
+        let bTime: Date;
+        
+        if (a.sentAt && typeof a.sentAt.toDate === 'function') {
+          aTime = a.sentAt.toDate();
+        } else if (a.sentAt instanceof Date) {
+          aTime = a.sentAt;
+        } else {
+          aTime = new Date(a.sentAt || 0);
+        }
+        
+        if (b.sentAt && typeof b.sentAt.toDate === 'function') {
+          bTime = b.sentAt.toDate();
+        } else if (b.sentAt instanceof Date) {
+          bTime = b.sentAt;
+        } else {
+          bTime = new Date(b.sentAt || 0);
+        }
+        
+        return bTime.getTime() - aTime.getTime();
+      });
+      
+      const mostRecentSMS = smsData[0];
+      const queryTime = Date.now() - startTime;
+      
+      console.log(`✅ Found most recent SMS (fallback): ${mostRecentSMS.id} (query took ${queryTime}ms)`);
+      console.log(`📱 SMS details:`, {
+        contactNumber: mostRecentSMS.contactNumber,
+        sentAt: mostRecentSMS.sentAt,
+        contractConfirmed: mostRecentSMS.contractConfirmed,
+        totalSMSFound: smsData.length,
+        queryTimeMs: queryTime
+      });
+      
+      return mostRecentSMS;
     }
     
     // Convert all documents to objects and get the most recent

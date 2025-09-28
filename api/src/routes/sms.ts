@@ -196,6 +196,15 @@ router.post('/send', authenticateToken, async (req, res) => {
         processedMessage: processedMessage,
         status: deliveryStatus || 'sent',
         
+        // Debug: Log phone number format
+        phoneNumberDebug: {
+          received: contact_number,
+          type: typeof contact_number,
+          length: contact_number?.length,
+          startsWithPlus: contact_number?.startsWith('+'),
+          startsWith47: contact_number?.startsWith('47')
+        },
+        
         // Template data (if used)
         templateData: templateData || null,
         
