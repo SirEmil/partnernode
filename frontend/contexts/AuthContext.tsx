@@ -31,6 +31,51 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Initialize authentication on app load
+  useEffect(() => {
+    const initAuth = async () => {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        try {
+          // Check if Firebase user is signed in and refresh token if needed
+          if (auth.currentUser) {
+            try {
+              const idToken = await auth.currentUser.getIdToken(true); // Force refresh
+              localStorage.setItem('authToken', idToken);
+              console.log('Token refreshed successfully');
+            } catch (refreshError) {
+              console.error('Token refresh failed:', refreshError);
+              // If refresh fails, clear the token
+              localStorage.removeItem('authToken');
+              setUser(null);
+              setLoading(false);
+              return;
+            }
+          } else {
+            // No current user, clear the token
+            console.log('No current user found, clearing token');
+            localStorage.removeItem('authToken');
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+          
+          // Get user data from API
+          const response = await authAPI.getCurrentUser();
+          setUser(response.user);
+          console.log('User data loaded:', response.user);
+        } catch (error) {
+          console.error('Failed to get current user:', error);
+          localStorage.removeItem('authToken');
+          setUser(null);
+        }
+      }
+      setLoading(false);
+    };
+
+    initAuth();
+  }, []);
+
   // Periodic token refresh to prevent expiration
   useEffect(() => {
     const refreshTokenPeriodically = async () => {
@@ -51,44 +96,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => clearInterval(interval);
   }, [user]);
 
-  useEffect(() => {
-    const initAuth = async () => {
-      const token = localStorage.getItem('authToken');
-      if (token) {
-        try {
-          // Always try to refresh the token first
-          if (auth.currentUser) {
-            try {
-              const idToken = await auth.currentUser.getIdToken(true); // Force refresh
-              localStorage.setItem('authToken', idToken);
-              console.log('Token refreshed successfully');
-            } catch (refreshError) {
-              console.error('Token refresh failed:', refreshError);
-              // If refresh fails, clear the token and redirect to login
-              localStorage.removeItem('authToken');
-              setLoading(false);
-              return;
-            }
-          } else {
-            // No current user, clear the token
-            console.log('No current user found, clearing token');
-            localStorage.removeItem('authToken');
-            setLoading(false);
-            return;
-          }
-          
-          const response = await authAPI.getCurrentUser();
-          setUser(response.user);
-        } catch (error) {
-          console.error('Failed to get current user:', error);
-          localStorage.removeItem('authToken');
-        }
-      }
-      setLoading(false);
-    };
-
-    initAuth();
-  }, []);
 
   const login = async (email: string, password: string) => {
     try {
