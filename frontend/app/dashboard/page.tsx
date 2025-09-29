@@ -302,6 +302,15 @@ export default function Dashboard() {
       if (response.ok) {
         const data = await response.json();
         setLeads(data.data || []);
+        
+        // Show helpful message if no leads found
+        if (data.data && data.data.length === 0) {
+          const debugMessage = data.debug?.message || 'No leads found';
+          toast.info(debugMessage, { duration: 5000 });
+          console.log('📋 Leads search result:', data.debug);
+        } else if (data.data && data.data.length > 0) {
+          toast.success(`Found ${data.data.length} lead(s)`, { duration: 3000 });
+        }
       } else {
         const errorData = await response.json();
         console.error('Leads API Error:', errorData);
