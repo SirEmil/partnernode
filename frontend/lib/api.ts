@@ -26,14 +26,34 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle auth errors
+// Handle auth errors and token refresh
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('authToken');
-      window.location.href = '/';
+  async (error) => {
+    const originalRequest = error.config;
+    
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      // Try to refresh the token
+      const { auth } = await import('../lib/firebase');
+      if (auth.currentUser) {
+        try {
+          const idToken = await auth.currentUser.getIdToken(true); // Force refresh
+          localStorage.setItem('authToken', idToken);
+          originalRequest.headers.Authorization = `Bearer ${idToken}`;
+          return api(originalRequest);
+        } catch (refreshError) {
+          console.error('Token refresh failed:', refreshError);
+          localStorage.removeItem('authToken');
+          window.location.href = '/';
+        }
+      } else {
+        localStorage.removeItem('authToken');
+        window.location.href = '/';
+      }
     }
+    
     return Promise.reject(error);
   }
 );

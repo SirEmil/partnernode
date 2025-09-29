@@ -31,16 +31,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Periodic token refresh to prevent expiration
+  useEffect(() => {
+    const refreshTokenPeriodically = async () => {
+      if (auth.currentUser) {
+        try {
+          const idToken = await auth.currentUser.getIdToken(true);
+          localStorage.setItem('authToken', idToken);
+          console.log('Token refreshed periodically');
+        } catch (error) {
+          console.error('Periodic token refresh failed:', error);
+        }
+      }
+    };
+
+    // Refresh token every 45 minutes (tokens expire after 1 hour)
+    const interval = setInterval(refreshTokenPeriodically, 45 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [user]);
+
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem('authToken');
       if (token) {
         try {
-          // Check if Firebase user is signed in
+          // Always try to refresh the token first
           if (auth.currentUser) {
-            // Refresh the token
-            const idToken = await auth.currentUser.getIdToken();
-            localStorage.setItem('authToken', idToken);
+            try {
+              const idToken = await auth.currentUser.getIdToken(true); // Force refresh
+              localStorage.setItem('authToken', idToken);
+              console.log('Token refreshed successfully');
+            } catch (refreshError) {
+              console.error('Token refresh failed:', refreshError);
+              // If refresh fails, clear the token and redirect to login
+              localStorage.removeItem('authToken');
+              setLoading(false);
+              return;
+            }
+          } else {
+            // No current user, clear the token
+            console.log('No current user found, clearing token');
+            localStorage.removeItem('authToken');
+            setLoading(false);
+            return;
           }
           
           const response = await authAPI.getCurrentUser();
