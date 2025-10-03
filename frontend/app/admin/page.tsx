@@ -298,21 +298,32 @@ export default function AdminSmsRecords() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
+          <div className="flex justify-between items-center h-20">
+            <div className="flex items-center space-x-6">
               <button
                 onClick={() => router.push('/dashboard')}
-                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+                className="flex items-center space-x-2 text-blue-100 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-white/10"
               >
                 <ArrowLeft className="w-5 h-5" />
                 <span>Back to Dashboard</span>
               </button>
+              <div className="h-8 w-px bg-blue-300"></div>
+              <div className="flex items-center space-x-4">
+                <div className="bg-white/20 rounded-xl p-3">
+                  <MessageSquare className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-white">SMS Records</h1>
+                  <p className="text-blue-100 text-sm">Manage and monitor SMS communications</p>
+                </div>
+              </div>
             </div>
             
-            <div className="flex items-center space-x-4">
-              <h1 className="text-xl font-bold text-gray-900">SMS Records</h1>
+            <div className="text-right">
+              <div className="text-blue-100 text-sm">Total Records</div>
+              <div className="text-3xl font-bold text-white">{smsRecords.length}</div>
             </div>
           </div>
         </div>
@@ -443,8 +454,8 @@ export default function AdminSmsRecords() {
           </p>
         </div>
 
-        {/* SMS Records Table */}
-        <div className="bg-white rounded-lg shadow-sm border">
+        {/* SMS Records Cards */}
+        <div className="space-y-4">
           {dataLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -462,89 +473,47 @@ export default function AdminSmsRecords() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contract</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sent</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredRecords.map((record) => (
-                    <tr key={record.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {record.customerName || 'N/A'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {record.companyName || 'N/A'}
-                        </div>
-                        {record.organizationNumber && (
-                          <div className="text-xs text-gray-500">
-                            Org: {record.organizationNumber}
+            <div className="grid gap-4">
+              {filteredRecords.map((record) => (
+                <div key={record.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 overflow-hidden">
+                  <div className="p-6">
+                    {/* Header Row */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                            <h3 className="text-lg font-semibold text-gray-900 truncate">
+                              {record.customerName || 'Unknown Customer'}
+                            </h3>
                           </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{record.contactNumber}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 max-w-xs truncate">
-                          {record.processedMessage}
-                        </div>
-                        {record.productName && (
-                          <div className="text-xs text-gray-500">
-                            Product: {record.productName}
+                          <div className="flex items-center space-x-1">
+                            {getStatusIcon(record.status)}
+                            <span className="text-sm font-medium text-gray-600 capitalize">{record.status}</span>
                           </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center space-x-2">
-                          {getStatusIcon(record.status)}
-                          <span className="text-sm text-gray-900 capitalize">{record.status}</span>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center space-x-2">
-                          {record.contractConfirmed ? (
-                            <>
-                              <CheckCircle className="w-4 h-4 text-green-600" />
-                              <span className="text-sm text-green-600">Confirmed</span>
-                            </>
-                          ) : (
-                            <>
-                              <Clock className="w-4 h-4 text-yellow-600" />
-                              <span className="text-sm text-yellow-600">Pending</span>
-                            </>
-                          )}
-                        </div>
-                        {record.contractConfirmedAt && (
-                          <div className="text-xs text-gray-500">
-                            {formatDate(record.contractConfirmedAt)}
+                        <div className="flex items-center space-x-4 text-sm text-gray-500">
+                          <div className="flex items-center space-x-1">
+                            <Phone className="w-4 h-4" />
+                            <span>{record.contactNumber}</span>
                           </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{record.userEmail}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{formatDate(record.sentAt)}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-1">
+                            <User className="w-4 h-4" />
+                            <span>{record.userEmail}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="w-4 h-4" />
+                            <span>{formatDate(record.sentAt)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Action Buttons */}
+                      <div className="flex items-center space-x-2 ml-4">
                         <button
                           onClick={() => handleDeleteSms(record.id)}
                           disabled={deletingRecords.has(record.id)}
-                          className="inline-flex items-center px-3 py-1.5 border border-red-300 text-red-700 text-sm font-medium rounded-md hover:bg-red-50 hover:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          className="inline-flex items-center px-3 py-2 border border-red-200 text-red-600 text-sm font-medium rounded-lg hover:bg-red-50 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                           title="Delete SMS record"
                         >
                           {deletingRecords.has(record.id) ? (
@@ -559,11 +528,73 @@ export default function AdminSmsRecords() {
                             </>
                           )}
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+
+                    {/* Content Grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                      {/* Company Info */}
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium text-gray-700">Company</h4>
+                        <div className="text-sm text-gray-900">
+                          {record.companyName || 'N/A'}
+                        </div>
+                        {record.organizationNumber && (
+                          <div className="text-xs text-gray-500">
+                            Org: {record.organizationNumber}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Contract Status */}
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium text-gray-700">Contract Status</h4>
+                        <div className="flex items-center space-x-2">
+                          {record.contractConfirmed ? (
+                            <>
+                              <CheckCircle className="w-5 h-5 text-green-600" />
+                              <span className="text-sm font-medium text-green-600">Confirmed</span>
+                            </>
+                          ) : (
+                            <>
+                              <Clock className="w-5 h-5 text-yellow-600" />
+                              <span className="text-sm font-medium text-yellow-600">Pending</span>
+                            </>
+                          )}
+                        </div>
+                        {record.contractConfirmedAt && (
+                          <div className="text-xs text-gray-500">
+                            Confirmed: {formatDate(record.contractConfirmedAt)}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Product Info */}
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium text-gray-700">Product</h4>
+                        <div className="text-sm text-gray-900">
+                          {record.productName || 'N/A'}
+                        </div>
+                        {record.price && (
+                          <div className="text-xs text-gray-500">
+                            Price: {record.price}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Message Preview */}
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Message</h4>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-sm text-gray-800 leading-relaxed">
+                          {record.processedMessage}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
