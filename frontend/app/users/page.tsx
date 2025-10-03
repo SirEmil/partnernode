@@ -59,24 +59,41 @@ export default function UsersPage() {
       setDataLoading(true);
       const token = localStorage.getItem('authToken');
       
+      console.log('🔍 Fetching users with token:', token ? 'Present' : 'Missing');
+      console.log('🔍 Current user:', user);
+      console.log('🔍 User authLevel:', user?.authLevel);
+      
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      console.log('🔍 API URL:', `${API_BASE_URL}/api/users`);
+      
       const response = await fetch(`${API_BASE_URL}/api/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
+      console.log('🔍 Response status:', response.status);
+      console.log('🔍 Response ok:', response.ok);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('🔍 Response data:', data);
         setUsers(data.users || []);
         console.log(`👥 Loaded ${data.users?.length || 0} users`);
       } else {
         const error = await response.json();
         console.error('Users API Error:', error);
+        console.error('Response status:', response.status);
+        console.error('Response headers:', response.headers);
         toast.error(error.message || 'Failed to load users');
       }
     } catch (error: any) {
       console.error('Users Fetch Error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       toast.error(`Error loading users: ${error.message || 'Network error'}`);
     } finally {
       setDataLoading(false);
