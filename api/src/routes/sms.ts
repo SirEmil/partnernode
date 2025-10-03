@@ -641,4 +641,85 @@ router.get('/my-records', authenticateToken, async (req, res) => {
   }
 });
 
+// Delete SMS record (move to deleted collection)
+router.delete('/:id', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?.uid;
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({
+        error: 'User not authenticated'
+      });
+    }
+
+    // Get user info for audit trail and check admin privileges
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.data();
+
+    if (!userData) {
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+
+    // Check if user has admin privileges (authLevel: 1)
+    if (userData.authLevel !== 1) {
+      return res.status(403).json({
+        error: 'Access denied',
+        message: 'Only admin users can delete SMS records'
+      });
+    }
+
+    // Get the SMS record to delete
+    const smsDoc = await db.collection('smsRecords').doc(id).get();
+    
+    if (!smsDoc.exists) {
+      return res.status(404).json({
+        error: 'SMS record not found'
+      });
+    }
+
+    const smsData = smsDoc.data();
+    
+    // Create deleted record with audit information
+    const deletedRecord = {
+      ...smsData,
+      originalId: id,
+      deletedAt: new Date(),
+      deletedBy: {
+        userId: userId,
+        userEmail: userData.email,
+        userName: userData.displayName || userData.email
+      },
+      deletedReason: 'Admin deletion'
+    };
+
+    // Move to deleted collection
+    await db.collection('deletedSmsRecords').doc(id).set(deletedRecord);
+
+    // Delete from original collection
+    await db.collection('smsRecords').doc(id).delete();
+
+    console.log(`🗑️ SMS record ${id} deleted by user ${userId} (${userData.email})`);
+
+    res.json({
+      success: true,
+      message: 'SMS record deleted successfully',
+      deletedRecord: {
+        id: id,
+        deletedAt: deletedRecord.deletedAt,
+        deletedBy: deletedRecord.deletedBy
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Error deleting SMS record:', error);
+    res.status(500).json({
+      error: 'Failed to delete SMS record',
+      message: error.message
+    });
+  }
+});
+
 export default router;

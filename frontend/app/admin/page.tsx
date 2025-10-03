@@ -14,7 +14,8 @@ import {
   XCircle,
   Clock,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -54,6 +55,7 @@ export default function AdminSmsRecords() {
   const [sortBy, setSortBy] = useState('sentAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showFilters, setShowFilters] = useState(false);
+  const [deletingRecords, setDeletingRecords] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (user && user.authLevel === 1) {
@@ -212,6 +214,53 @@ export default function AdminSmsRecords() {
       return acc;
     }, [] as { id: string; email: string }[]);
     return users;
+  };
+
+  const handleDeleteSms = async (recordId: string) => {
+    if (!confirm('Are you sure you want to delete this SMS record? It will be moved to the deleted records collection.')) {
+      return;
+    }
+
+    try {
+      setDeletingRecords(prev => new Set(prev).add(recordId));
+      
+      const token = localStorage.getItem('authToken');
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      
+      const response = await fetch(`${API_BASE_URL}/api/sms/${recordId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        // Remove from local state
+        setSmsRecords(prev => prev.filter(record => record.id !== recordId));
+        
+        toast.success('SMS record deleted successfully', {
+          duration: 3000,
+          icon: '🗑️'
+        });
+        
+        console.log('SMS deleted:', result);
+      } else {
+        const errorData = await response.json();
+        console.error('Delete SMS Error:', errorData);
+        toast.error(errorData.message || errorData.error || 'Failed to delete SMS record');
+      }
+    } catch (error: any) {
+      console.error('Error deleting SMS:', error);
+      toast.error(`Failed to delete SMS: ${error.message || 'Network error'}`);
+    } finally {
+      setDeletingRecords(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(recordId);
+        return newSet;
+      });
+    }
   };
 
   if (loading) {
@@ -425,6 +474,7 @@ export default function AdminSmsRecords() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contract</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sent</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -489,6 +539,26 @@ export default function AdminSmsRecords() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{formatDate(record.sentAt)}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={() => handleDeleteSms(record.id)}
+                          disabled={deletingRecords.has(record.id)}
+                          className="inline-flex items-center px-3 py-1.5 border border-red-300 text-red-700 text-sm font-medium rounded-md hover:bg-red-50 hover:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          title="Delete SMS record"
+                        >
+                          {deletingRecords.has(record.id) ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                              Deleting...
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Delete
+                            </>
+                          )}
+                        </button>
                       </td>
                     </tr>
                   ))}
