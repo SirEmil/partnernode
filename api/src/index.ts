@@ -18,6 +18,7 @@ import productsRoutes from './routes/products';
 import termsRoutes from './routes/terms';
 import smsSettingsRoutes from './routes/sms-settings';
 import webhookRoutes from './routes/webhook';
+import usersRoutes from './routes/users';
 
 // SSE (Server-Sent Events) for real-time updates
 interface SSEClient {
@@ -153,6 +154,7 @@ app.use('/api/products', productsRoutes);
 app.use('/api/terms', termsRoutes);
 app.use('/api/sms-settings', smsSettingsRoutes);
 app.use('/api/webhook', webhookRoutes);
+app.use('/api/users', usersRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

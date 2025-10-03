@@ -112,9 +112,15 @@ router.post('/login', async (req, res) => {
     // Generate custom token for client
     const customToken = await auth.createCustomToken(userRecord.uid);
 
-    // Get user data from Firestore
+    // Get user data from Firestore and update last login
     const userDoc = await db.collection('users').doc(userRecord.uid).get();
     const userData = userDoc.data() as User;
+
+    // Update last login time
+    await db.collection('users').doc(userRecord.uid).update({
+      lastLoginAt: new Date(),
+      updatedAt: new Date()
+    });
 
     res.json({
       message: 'Login successful',

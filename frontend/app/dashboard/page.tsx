@@ -13,7 +13,8 @@ import {
   CheckCircle,
   Package,
   Settings,
-  Edit
+  Edit,
+  Users
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -592,6 +593,13 @@ export default function Dashboard() {
                   >
                     <Edit className="w-4 h-4" />
                     <span>Admin</span>
+                  </button>
+                  <button
+                    onClick={() => router.push('/users')}
+                    className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                  >
+                    <Users className="w-4 h-4" />
+                    <span>Users</span>
                   </button>
                 </>
               )}
