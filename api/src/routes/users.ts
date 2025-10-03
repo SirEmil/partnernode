@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticateToken } from '../middleware/auth';
-import { db } from '../lib/firebase';
+import { db } from '../config/firebase';
 
 const router = express.Router();
 
@@ -35,7 +35,7 @@ router.get('/', authenticateToken, async (req, res) => {
     // Get all users
     const usersSnapshot = await db.collection('users').get();
     
-    const users = usersSnapshot.docs.map(doc => {
+    const users = usersSnapshot.docs.map((doc: any) => {
       const data = doc.data();
       return {
         id: doc.id,
@@ -50,7 +50,7 @@ router.get('/', authenticateToken, async (req, res) => {
     });
 
     // Sort by creation date (newest first)
-    users.sort((a, b) => {
+    users.sort((a: any, b: any) => {
       const aTime = new Date(a.createdAt).getTime();
       const bTime = new Date(b.createdAt).getTime();
       return bTime - aTime;
