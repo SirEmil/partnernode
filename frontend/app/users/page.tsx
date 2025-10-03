@@ -156,7 +156,7 @@ export default function UsersPage() {
     setFilteredUsers(filtered);
   };
 
-  const formatDate = (date: Date | string) => {
+  const formatDate = (date: Date | string | undefined) => {
     if (!date) return 'Never';
     const d = new Date(date);
     return d.toLocaleDateString('no-NO', {
