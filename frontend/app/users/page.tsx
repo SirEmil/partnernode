@@ -13,7 +13,8 @@ import {
   Clock,
   ChevronDown,
   ChevronUp,
-  Users
+  Users,
+  Edit2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,6 +24,8 @@ interface UserRecord {
   uid: string;
   email: string;
   displayName?: string;
+  firstName?: string;
+  lastName?: string;
   authLevel: number;
   createdAt: Date;
   updatedAt: Date;
@@ -41,6 +44,12 @@ export default function UsersPage() {
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showFilters, setShowFilters] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
+  const [editForm, setEditForm] = useState({
+    firstName: '',
+    lastName: '',
+    authLevel: 0
+  });
 
   useEffect(() => {
     if (user && user.authLevel === 1) {
@@ -98,6 +107,60 @@ export default function UsersPage() {
     } finally {
       setDataLoading(false);
     }
+  };
+
+  const handleEditUser = (userRecord: UserRecord) => {
+    setEditingUser(userRecord);
+    setEditForm({
+      firstName: userRecord.firstName || '',
+      lastName: userRecord.lastName || '',
+      authLevel: userRecord.authLevel
+    });
+  };
+
+  const handleSaveUser = async () => {
+    if (!editingUser) return;
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      
+      const response = await fetch(`${API_BASE_URL}/api/users/${editingUser.uid}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ User updated successfully:', data);
+        
+        // Update the user in the local state
+        setUsers(prev => prev.map(u => 
+          u.uid === editingUser.uid 
+            ? { ...u, ...editForm, updatedAt: new Date() }
+            : u
+        ));
+        
+        toast.success('User updated successfully!');
+        setEditingUser(null);
+      } else {
+        const error = await response.json();
+        console.error('Update user error:', error);
+        toast.error(error.message || 'Failed to update user');
+      }
+    } catch (error: any) {
+      console.error('Update user error:', error);
+      toast.error(`Error updating user: ${error.message || 'Network error'}`);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingUser(null);
+    setEditForm({ firstName: '', lastName: '', authLevel: 0 });
   };
 
   const applyFilters = () => {
@@ -362,6 +425,7 @@ export default function UsersPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -376,7 +440,10 @@ export default function UsersPage() {
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">
-                              {userRecord.displayName || 'No name'}
+                              {userRecord.firstName && userRecord.lastName 
+                                ? `${userRecord.firstName} ${userRecord.lastName}`
+                                : userRecord.displayName || 'No name'
+                              }
                             </div>
                             <div className="text-sm text-gray-500 flex items-center">
                               <Mail className="w-3 h-3 mr-1" />
@@ -402,6 +469,15 @@ export default function UsersPage() {
                           {userRecord.uid.substring(0, 8)}...
                         </div>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={() => handleEditUser(userRecord)}
+                          className="text-blue-600 hover:text-blue-900 transition-colors"
+                          title="Edit user"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -410,6 +486,74 @@ export default function UsersPage() {
           )}
         </div>
       </div>
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Edit User: {editingUser.email}
+            </h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  First Name
+                </label>
+                <input
+                  type="text"
+                  value={editForm.firstName}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, firstName: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter first name"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  value={editForm.lastName}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, lastName: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter last name"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Role
+                </label>
+                <select
+                  value={editForm.authLevel}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, authLevel: parseInt(e.target.value) }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value={0}>User</option>
+                  <option value={1}>Admin</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={handleCancelEdit}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveUser}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
