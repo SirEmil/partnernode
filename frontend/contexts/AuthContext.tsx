@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authAPI, User } from '../lib/api';
-import { signInWithCustomToken } from 'firebase/auth';
+import { signInWithCustomToken, onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
 interface AuthContextType {
@@ -33,32 +33,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Initialize authentication on app load
   useEffect(() => {
-    const initAuth = async () => {
-      const token = localStorage.getItem('authToken');
-      if (token) {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('Firebase auth state changed:', firebaseUser ? 'User signed in' : 'User signed out');
+      
+      if (firebaseUser) {
         try {
-          // Check if Firebase user is signed in and refresh token if needed
-          if (auth.currentUser) {
-            try {
-              const idToken = await auth.currentUser.getIdToken(true); // Force refresh
-              localStorage.setItem('authToken', idToken);
-              console.log('Token refreshed successfully');
-            } catch (refreshError) {
-              console.error('Token refresh failed:', refreshError);
-              // If refresh fails, clear the token
-              localStorage.removeItem('authToken');
-              setUser(null);
-              setLoading(false);
-              return;
-            }
-          } else {
-            // No current user, clear the token
-            console.log('No current user found, clearing token');
-            localStorage.removeItem('authToken');
-            setUser(null);
-            setLoading(false);
-            return;
-          }
+          // Get fresh token
+          const idToken = await firebaseUser.getIdToken(true);
+          localStorage.setItem('authToken', idToken);
+          console.log('Token refreshed successfully');
           
           // Get user data from API
           const response = await authAPI.getCurrentUser();
@@ -69,17 +52,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           localStorage.removeItem('authToken');
           setUser(null);
         }
+      } else {
+        // No user signed in
+        console.log('No user signed in, clearing state');
+        localStorage.removeItem('authToken');
+        setUser(null);
       }
+      
       setLoading(false);
-    };
+    });
 
-    initAuth();
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
   }, []);
 
   // Periodic token refresh to prevent expiration
   useEffect(() => {
     const refreshTokenPeriodically = async () => {
-      if (auth.currentUser) {
+      if (user && auth.currentUser) {
         try {
           const idToken = await auth.currentUser.getIdToken(true);
           localStorage.setItem('authToken', idToken);
@@ -131,9 +121,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('authToken');
-    setUser(null);
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      localStorage.removeItem('authToken');
+      setUser(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Fallback: clear local state even if Firebase signOut fails
+      localStorage.removeItem('authToken');
+      setUser(null);
+    }
   };
 
   const value = {
