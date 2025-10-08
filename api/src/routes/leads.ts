@@ -5,8 +5,11 @@ import { authenticateToken } from '../middleware/auth';
 const router = express.Router();
 
 // Pipedrive API configuration
-const PIPEDRIVE_API_URL = 'https://api.pipedrive.com/v1';
+const PIPEDRIVE_API_URL = 'https://api.pipedrive.com/api/v2';
 const PIPEDRIVE_API_TOKEN = process.env.PIPEDRIVE_API_TOKEN;
+
+// Norwegian Business Register API configuration
+const BRREG_API_URL = 'https://data.brreg.no/enhetsregisteret/api/enheter';
 
 if (!PIPEDRIVE_API_TOKEN) {
   console.warn('PIPEDRIVE_API_TOKEN is not set. Leads functionality will not work.');
@@ -71,6 +74,87 @@ interface PipedriveLead {
   person_hidden: boolean;
 }
 
+// Fetch company information from Norwegian Business Register
+router.get('/company-info', authenticateToken, async (req, res) => {
+  try {
+    const { org_number } = req.query;
+
+    if (!org_number) {
+      return res.status(400).json({
+        error: 'Organization number is required',
+        message: 'Please provide org_number query parameter'
+      });
+    }
+
+    console.log('🏢 Fetching company info from BRREG for org number:', org_number);
+
+    try {
+      const response = await axios.get(`${BRREG_API_URL}/${org_number}`, {
+        timeout: 10000,
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Contract-Sender-App/1.0'
+        }
+      });
+
+      const companyData = response.data;
+      
+      console.log('✅ BRREG API response:', {
+        orgNumber: companyData.organisasjonsnummer,
+        companyName: companyData.navn,
+        status: companyData.registreringsdatoEnhetsregisteret
+      });
+
+      res.json({
+        success: true,
+        data: {
+          orgNumber: companyData.organisasjonsnummer,
+          companyName: companyData.navn,
+          businessAddress: companyData.forretningsadresse,
+          postalAddress: companyData.postadresse,
+          registrationDate: companyData.registreringsdatoEnhetsregisteret,
+          organizationForm: companyData.organisasjonsform,
+          industryCode: companyData.naeringskode1,
+          industryDescription: companyData.naeringskode1Beskrivelse,
+          employees: companyData.antallAnsatte,
+          website: companyData.hjemmeside,
+          email: companyData.epostadresse,
+          phone: companyData.telefonnummer
+        },
+        source: 'BRREG',
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (brregError: any) {
+      console.error('❌ BRREG API Error:', {
+        message: brregError.message,
+        status: brregError.response?.status,
+        orgNumber: org_number
+      });
+
+      if (brregError.response?.status === 404) {
+        return res.status(404).json({
+          error: 'Company not found',
+          message: `No company found with organization number: ${org_number}`,
+          orgNumber: org_number
+        });
+      }
+
+      return res.status(500).json({
+        error: 'BRREG API error',
+        message: 'Failed to fetch company information from Norwegian Business Register'
+      });
+    }
+
+  } catch (error: any) {
+    console.error('Company info fetch error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch company information',
+      message: error.message
+    });
+  }
+});
+
 // Fetch leads from Pipedrive by organization number
 router.get('/fetch', authenticateToken, async (req, res) => {
   try {
@@ -96,134 +180,146 @@ router.get('/fetch', authenticateToken, async (req, res) => {
       });
     }
 
-    // Enhanced Pipedrive API search with multiple strategies
-    console.log('🔍 Searching Pipedrive for org number:', org_number);
+    // Enhanced Pipedrive API v2 search with multiple strategies
+    console.log('🔍 Searching Pipedrive v2 for org number:', org_number);
     console.log('🔑 Using API token:', PIPEDRIVE_API_TOKEN?.substring(0, 10) + '...');
     
     let matchingDeals: any[] = [];
     
     try {
-      // Strategy 1: Search by custom field (org number field)
-      const orgNumberFieldKey = '7e2772b624a2398873defce2783190749bb82338';
+      // Strategy 1: Search by organization ID (most reliable)
+      console.log('📋 Strategy 1: Searching by organization...');
       
-      console.log('📋 Strategy 1: Searching by custom field...');
-      const response = await axios.get(`${PIPEDRIVE_API_URL}/deals`, {
+      // First, find the organization by org number
+      const orgResponse = await axios.get(`${PIPEDRIVE_API_URL}/organizations`, {
         params: {
           api_token: PIPEDRIVE_API_TOKEN,
           term: org_number,
-          search_by_fields: orgNumberFieldKey,
-          limit: 50 // Increased limit to catch more results
+          limit: 10
         },
         timeout: 15000
       });
-
-      console.log('📊 Pipedrive API search response:', {
-        success: response.data.success,
-        dataCount: response.data.data?.length || 0,
-        additionalData: response.data.additional_data
-      });
       
-      const deals = response.data.data || [];
+      const organizations = orgResponse.data.data?.items || [];
+      console.log(`📊 Found ${organizations.length} organizations matching "${org_number}"`);
       
-      // Filter deals that actually match the org number
-      matchingDeals = deals.filter((deal: any) => {
-        const customFields = deal[orgNumberFieldKey];
-        const matches = customFields && customFields.toString() === org_number.toString();
-        console.log(`📋 Deal ${deal.id}: orgNumber = "${customFields}", searching for "${org_number}", matches: ${matches}`);
-        return matches;
-      });
-      
-      console.log(`✅ Strategy 1 found ${matchingDeals.length} matching deals`);
-      
-      // Strategy 2: If no results, try searching all deals and filter manually
-      if (matchingDeals.length === 0) {
-        console.log('📋 Strategy 2: Searching all recent deals...');
+      if (organizations.length > 0) {
+        // Get deals for the first matching organization
+        const orgId = organizations[0].id;
+        console.log(`📋 Searching deals for organization ID: ${orgId}`);
         
-        const allDealsResponse = await axios.get(`${PIPEDRIVE_API_URL}/deals`, {
+        const dealsResponse = await axios.get(`${PIPEDRIVE_API_URL}/deals`, {
           params: {
             api_token: PIPEDRIVE_API_TOKEN,
-            limit: 100,
-            sort: 'add_time DESC' // Get most recent deals first
+            org_id: orgId,
+            limit: 50,
+            include_fields: 'custom_fields'
           },
           timeout: 15000
         });
         
-        const allDeals = allDealsResponse.data.data || [];
-        console.log(`📊 Found ${allDeals.length} total deals, searching for org number "${org_number}"`);
-        
-        // Search through all deals for the org number
-        const manualMatches = allDeals.filter((deal: any) => {
-          // Check custom fields
-          const customFields = deal[orgNumberFieldKey];
-          if (customFields && customFields.toString() === org_number.toString()) {
-            console.log(`✅ Manual match found in deal ${deal.id}: "${customFields}"`);
-            return true;
-          }
-          
-          // Also check if org number appears in title or org_name
-          const titleMatch = deal.title && deal.title.includes(org_number);
-          const orgMatch = deal.org_name && deal.org_name.includes(org_number);
-          
-          if (titleMatch || orgMatch) {
-            console.log(`✅ Text match found in deal ${deal.id}: title="${deal.title}", org="${deal.org_name}"`);
-            return true;
-          }
-          
-          return false;
-        });
-        
-        matchingDeals = manualMatches;
-        console.log(`✅ Strategy 2 found ${matchingDeals.length} matching deals`);
+        matchingDeals = dealsResponse.data.data?.items || [];
+        console.log(`✅ Strategy 1 found ${matchingDeals.length} deals for organization ${orgId}`);
       }
       
-      // Strategy 3: If still no results, try searching with different field variations
+      // Strategy 2: If no org-based results, search deals directly
       if (matchingDeals.length === 0) {
-        console.log('📋 Strategy 3: Trying alternative field searches...');
+        console.log('📋 Strategy 2: Searching deals directly...');
         
-        // Try searching without specifying the field (general search)
-        const generalSearchResponse = await axios.get(`${PIPEDRIVE_API_URL}/deals`, {
+        const dealsResponse = await axios.get(`${PIPEDRIVE_API_URL}/deals`, {
           params: {
             api_token: PIPEDRIVE_API_TOKEN,
             term: org_number,
-            limit: 50
+            limit: 50,
+            include_fields: 'custom_fields'
           },
           timeout: 15000
         });
         
-        const generalDeals = generalSearchResponse.data.data || [];
-        console.log(`📊 General search found ${generalDeals.length} deals`);
+        const allDeals = dealsResponse.data.data?.items || [];
+        console.log(`📊 Found ${allDeals.length} deals in direct search`);
         
-        // Filter for actual matches
-        const generalMatches = generalDeals.filter((deal: any) => {
-          // Check all possible fields where org number might appear
+        // Filter deals that actually match the org number
+        matchingDeals = allDeals.filter((deal: any) => {
+          // Check if org number appears in any relevant field
           const fieldsToCheck = [
-            deal[orgNumberFieldKey],
             deal.title,
             deal.org_name,
             deal.person_name
           ];
           
+          // Also check custom fields if they exist
+          if (deal.custom_fields) {
+            Object.values(deal.custom_fields).forEach((field: any) => {
+              if (field && typeof field === 'string') {
+                fieldsToCheck.push(field);
+              }
+            });
+          }
+          
           const hasMatch = fieldsToCheck.some(field => 
-            field && field.toString().includes(org_number)
+            field && field.toString().includes(org_number.toString())
           );
           
           if (hasMatch) {
-            console.log(`✅ General search match found in deal ${deal.id}`);
+            console.log(`✅ Deal ${deal.id} matches: "${deal.title}"`);
           }
           
           return hasMatch;
         });
         
-        matchingDeals = generalMatches;
+        console.log(`✅ Strategy 2 found ${matchingDeals.length} matching deals`);
+      }
+      
+      // Strategy 3: If still no results, try searching recent deals
+      if (matchingDeals.length === 0) {
+        console.log('📋 Strategy 3: Searching recent deals...');
+        
+        const recentDealsResponse = await axios.get(`${PIPEDRIVE_API_URL}/deals`, {
+          params: {
+            api_token: PIPEDRIVE_API_TOKEN,
+            sort_by: 'add_time',
+            sort_direction: 'desc',
+            limit: 100,
+            include_fields: 'custom_fields'
+          },
+          timeout: 15000
+        });
+        
+        const recentDeals = recentDealsResponse.data.data?.items || [];
+        console.log(`📊 Found ${recentDeals.length} recent deals`);
+        
+        // Search through recent deals
+        const recentMatches = recentDeals.filter((deal: any) => {
+          const fieldsToCheck = [
+            deal.title,
+            deal.org_name,
+            deal.person_name
+          ];
+          
+          if (deal.custom_fields) {
+            Object.values(deal.custom_fields).forEach((field: any) => {
+              if (field && typeof field === 'string') {
+                fieldsToCheck.push(field);
+              }
+            });
+          }
+          
+          return fieldsToCheck.some(field => 
+            field && field.toString().includes(org_number.toString())
+          );
+        });
+        
+        matchingDeals = recentMatches;
         console.log(`✅ Strategy 3 found ${matchingDeals.length} matching deals`);
       }
       
       // Fetch person details for each deal to get phone numbers
       for (let i = 0; i < matchingDeals.length; i++) {
         const deal = matchingDeals[i];
-        if (deal.person_id && deal.person_id.value) {
+        if (deal.person_id) {
           try {
-            const personResponse = await axios.get(`${PIPEDRIVE_API_URL}/persons/${deal.person_id.value}`, {
+            const personResponse = await axios.get(`${PIPEDRIVE_API_URL}/persons/${deal.person_id}`, {
               params: {
                 api_token: PIPEDRIVE_API_TOKEN
               },
@@ -249,13 +345,13 @@ router.get('/fetch', authenticateToken, async (req, res) => {
       } else {
         console.log('❌ No matching deals found. This could be due to:');
         console.log('   - Lead not yet imported to Pipedrive');
-        console.log('   - API indexing delay (can take 5-15 minutes)');
+        console.log('   - API indexing delay (can take 2-5 minutes with v2)');
         console.log('   - Incorrect organization number format');
         console.log('   - Lead imported with different field mapping');
       }
       
     } catch (apiError: any) {
-      console.error('❌ Pipedrive API Error:', {
+      console.error('❌ Pipedrive API v2 Error:', {
         message: apiError.message,
         status: apiError.response?.status,
         data: apiError.response?.data,
@@ -265,7 +361,7 @@ router.get('/fetch', authenticateToken, async (req, res) => {
       // Don't use mock data, return empty results with helpful message
       matchingDeals = [];
       
-      console.log('⚠️  Pipedrive API failed. Possible causes:');
+      console.log('⚠️  Pipedrive API v2 failed. Possible causes:');
       console.log('   - API token expired or invalid');
       console.log('   - Network connectivity issues');
       console.log('   - Pipedrive API rate limiting');
@@ -285,8 +381,8 @@ router.get('/fetch', authenticateToken, async (req, res) => {
         searchStrategies: matchingDeals.length > 0 ? 'Found via API search' : 'No matches found',
         timestamp: new Date().toISOString(),
         message: matchingDeals.length === 0 
-          ? 'No leads found. This could be due to API indexing delay (5-15 minutes) or lead not yet imported.'
-          : `Found ${matchingDeals.length} matching lead(s)`
+          ? 'No leads found. This could be due to API indexing delay (2-5 minutes with v2) or lead not yet imported.'
+          : `Found ${matchingDeals.length} matching lead(s) using Pipedrive API v2`
       }
     });
 
