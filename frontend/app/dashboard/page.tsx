@@ -284,15 +284,18 @@ export default function Dashboard() {
         return;
       }
       
-      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
-      
-      // Build URL with org_number query parameter if provided
-      const url = new URL(`${API_BASE_URL}/api/leads/fetch`);
-      if (orgNumber) {
-        url.searchParams.append('org_number', orgNumber);
+      if (!orgNumber) {
+        toast.error('Organization number is required');
+        return;
       }
       
-      console.log('Fetching leads from:', url.toString());
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      
+      // Use BRREG API to get company information
+      const url = new URL(`${API_BASE_URL}/api/leads/company-info`);
+      url.searchParams.append('org_number', orgNumber);
+      
+      console.log('Fetching company info from BRREG:', url.toString());
       
       const response = await fetch(url.toString(), {
         headers: {
@@ -302,27 +305,55 @@ export default function Dashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        setLeads(data.data || []);
+        const companyData = data.data;
         
-        // Show helpful message if no leads found
-        if (data.data && data.data.length === 0) {
-          const debugMessage = data.debug?.message || 'No leads found';
-          toast(debugMessage, { 
-            duration: 5000,
-            icon: 'ℹ️'
-          });
-          console.log('📋 Leads search result:', data.debug);
-        } else if (data.data && data.data.length > 0) {
-          toast.success(`Found ${data.data.length} lead(s)`, { duration: 3000 });
-        }
+        // Update manual template data with company information
+        setManualTemplateData(prev => ({
+          ...prev,
+          company_name: companyData.companyName || '',
+          customer_name: companyData.companyName || '',
+          phone: companyData.phone || '',
+          email: companyData.email || '',
+          orgnr: orgNumber
+        }));
+        
+        // Create a "lead" object from BRREG data for display
+        const brregLead = {
+          id: companyData.orgNumber,
+          title: companyData.companyName,
+          org_name: companyData.companyName,
+          person_name: companyData.companyName,
+          phone: companyData.phone,
+          email: companyData.email,
+          business_address: companyData.businessAddress,
+          industry: companyData.industryDescription,
+          employees: companyData.employees,
+          website: companyData.website,
+          source: 'BRREG',
+          // Required Lead interface properties
+          owner_name: 'BRREG',
+          status: 'active',
+          add_time: new Date().toISOString()
+        };
+        
+        setLeads([brregLead]);
+        
+        toast.success(`Found company: ${companyData.companyName}`, { duration: 3000 });
+        console.log('✅ BRREG company data:', companyData);
+        
+      } else if (response.status === 404) {
+        // Company not found in BRREG
+        setLeads([]);
+        toast.error(`No company found with organization number: ${orgNumber}`, { duration: 5000 });
+        console.log('❌ Company not found in BRREG');
       } else {
         const errorData = await response.json();
-        console.error('Leads API Error:', errorData);
-        toast.error(errorData.message || errorData.error || 'Failed to fetch leads');
+        console.error('BRREG API Error:', errorData);
+        toast.error(errorData.message || errorData.error || 'Failed to fetch company information');
       }
     } catch (error: any) {
-      console.error('Error fetching leads:', error);
-      toast.error(`Failed to fetch leads: ${error.message || 'Network error'}`);
+      console.error('Error fetching company info:', error);
+      toast.error(`Failed to fetch company information: ${error.message || 'Network error'}`);
     } finally {
       setDataLoading(false);
     }
@@ -930,7 +961,7 @@ export default function Dashboard() {
                           {dataLoading ? 'Searching...' : 'Search'}
                         </button>
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">Enter organization number to fetch leads from Pipedrive</p>
+                      <p className="text-xs text-gray-500 mt-1">Enter organization number to fetch company information from Norwegian Business Register</p>
                     </div>
                   ) : null}
 
