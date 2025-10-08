@@ -90,8 +90,8 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [resendTimer]);
 
-  // Helper function to format Norwegian phone numbers
-  const formatNorwegianPhone = (phone: string) => {
+  // Helper function to format Norwegian phone numbers for API
+  const formatPhoneForAPI = (phone: string) => {
     if (!phone) return phone;
     
     // Remove any existing +47 prefix and spaces
@@ -347,7 +347,7 @@ export default function Dashboard() {
           ...prev,
           company_name: companyData.companyName || '',
           customer_name: companyData.companyName || '',
-          phone: companyData.phone ? formatNorwegianPhone(companyData.phone) : '',
+          phone: companyData.phone || '',
           email: companyData.email || '',
           orgnr: orgNumber
         }));
@@ -458,7 +458,7 @@ export default function Dashboard() {
         Orgnr: manualTemplateData.orgnr || '[Orgnr]',
         terms: selectedTerms?.url || '[terms]',
         Terms: selectedTerms?.url || '[Terms]',
-        phone: manualTemplateData.phone || smsPhone,
+        phone: formatPhoneForAPI(manualTemplateData.phone || smsPhone),
         email: manualTemplateData.email || '[email]',
         date: manualTemplateData.date || new Date().toLocaleDateString()
       };
@@ -786,20 +786,22 @@ export default function Dashboard() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Phone Number
                   </label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="tel"
-                      value={smsPhone}
-                      onChange={(e) => {
-                        const formatted = formatNorwegianPhone(e.target.value);
-                        setSmsPhone(formatted);
-                      }}
-                      placeholder="41234567 (auto-adds +47)"
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
+                  <div className="flex">
+                    <div className="flex items-center px-3 py-2 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg text-gray-600 font-medium">
+                      +47
+                    </div>
+                    <div className="relative flex-1">
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="tel"
+                        value={smsPhone}
+                        onChange={(e) => setSmsPhone(e.target.value)}
+                        placeholder="41234567"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Norwegian numbers will automatically get +47 prefix</p>
+                  <p className="text-xs text-gray-500 mt-1">Enter Norwegian phone number (8 digits)</p>
                 </div>
 
 
@@ -1073,16 +1075,18 @@ export default function Dashboard() {
                   {selectedProduct.smsTemplate.includes('[phone]') ? (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                      <input
-                        type="tel"
-                        value={manualTemplateData.phone}
-                        onChange={(e) => {
-                          const formatted = formatNorwegianPhone(e.target.value);
-                          setManualTemplateData({...manualTemplateData, phone: formatted});
-                        }}
-                        placeholder="41234567 (auto-adds +47)"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
+                      <div className="flex">
+                        <div className="flex items-center px-3 py-2 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg text-gray-600 font-medium">
+                          +47
+                        </div>
+                        <input
+                          type="tel"
+                          value={manualTemplateData.phone}
+                          onChange={(e) => setManualTemplateData({...manualTemplateData, phone: e.target.value})}
+                          placeholder="41234567"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
                     </div>
                   ) : null}
                   
