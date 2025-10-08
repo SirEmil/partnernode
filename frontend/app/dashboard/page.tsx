@@ -90,6 +90,41 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [resendTimer]);
 
+  // Helper function to format Norwegian phone numbers
+  const formatNorwegianPhone = (phone: string) => {
+    if (!phone) return phone;
+    
+    // Remove any existing +47 prefix and spaces
+    let cleaned = phone.replace(/^\+47/, '').replace(/\s/g, '');
+    
+    // If it starts with 47, remove it
+    if (cleaned.startsWith('47')) {
+      cleaned = cleaned.substring(2);
+    }
+    
+    // If it's a valid Norwegian mobile number (8 digits starting with 4 or 9)
+    if (/^[49]\d{7}$/.test(cleaned)) {
+      return `+47${cleaned}`;
+    }
+    
+    // If it's a valid Norwegian landline (8 digits starting with 2 or 3)
+    if (/^[23]\d{7}$/.test(cleaned)) {
+      return `+47${cleaned}`;
+    }
+    
+    // If it already has a country code, return as is
+    if (phone.startsWith('+')) {
+      return phone;
+    }
+    
+    // Otherwise, assume it's Norwegian and add +47
+    if (cleaned.length >= 8) {
+      return `+47${cleaned}`;
+    }
+    
+    return phone;
+  };
+
   // Helper function to handle Firebase timestamps
   const formatFirebaseTimestamp = (timestamp: any): string => {
     if (!timestamp) return '';
@@ -312,7 +347,7 @@ export default function Dashboard() {
           ...prev,
           company_name: companyData.companyName || '',
           customer_name: companyData.companyName || '',
-          phone: companyData.phone || '',
+          phone: companyData.phone ? formatNorwegianPhone(companyData.phone) : '',
           email: companyData.email || '',
           orgnr: orgNumber
         }));
@@ -756,11 +791,15 @@ export default function Dashboard() {
                     <input
                       type="tel"
                       value={smsPhone}
-                      onChange={(e) => setSmsPhone(e.target.value)}
-                      placeholder="+14155551234"
+                      onChange={(e) => {
+                        const formatted = formatNorwegianPhone(e.target.value);
+                        setSmsPhone(formatted);
+                      }}
+                      placeholder="41234567 (auto-adds +47)"
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">Norwegian numbers will automatically get +47 prefix</p>
                 </div>
 
 
@@ -1037,8 +1076,11 @@ export default function Dashboard() {
                       <input
                         type="tel"
                         value={manualTemplateData.phone}
-                        onChange={(e) => setManualTemplateData({...manualTemplateData, phone: e.target.value})}
-                        placeholder="Override phone number"
+                        onChange={(e) => {
+                          const formatted = formatNorwegianPhone(e.target.value);
+                          setManualTemplateData({...manualTemplateData, phone: formatted});
+                        }}
+                        placeholder="41234567 (auto-adds +47)"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
