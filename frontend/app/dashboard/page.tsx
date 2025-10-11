@@ -465,6 +465,16 @@ export default function Dashboard() {
       };
 
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      const formattedPhone = formatPhoneForAPI(manualTemplateData.phone || smsPhone);
+      
+      // Debug logging
+      console.log('SMS Debug:', {
+        originalPhone: manualTemplateData.phone || smsPhone,
+        formattedPhone: formattedPhone,
+        smsPhone: smsPhone,
+        manualPhone: manualTemplateData.phone
+      });
+      
       const response = await fetch(`${API_BASE_URL}/api/sms/send`, {
         method: 'POST',
         headers: {
@@ -472,7 +482,7 @@ export default function Dashboard() {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          contact_number: smsPhone, // E.164 format
+          contact_number: formattedPhone, // E.164 format
           body: selectedProduct.smsTemplate,
           templateData: templateData,
           restrict_once: 'No' // Allow sending to same number multiple times
