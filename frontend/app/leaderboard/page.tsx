@@ -41,15 +41,15 @@ interface DummyUser {
 
 // Dummy users with higher average skill levels
 const dummyUsers: DummyUser[] = [
-  { id: '1', name: 'Kristoffer Myhre', email: 'kristoffer@company.com', avatar: '👑', skillLevel: 10 },
-  { id: '2', name: 'Camilla Solberg', email: 'camilla@company.com', avatar: '🚀', skillLevel: 10 },
-  { id: '3', name: 'Henrik Bakken', email: 'henrik@company.com', avatar: '⭐', skillLevel: 9 },
-  { id: '4', name: 'Marte Eriksen', email: 'marte@company.com', avatar: '💎', skillLevel: 9 },
-  { id: '5', name: 'Andreas Haugen', email: 'andreas@company.com', avatar: '🔥', skillLevel: 8 },
-  { id: '6', name: 'Silje Nordby', email: 'silje@company.com', avatar: '⚡', skillLevel: 8 },
+  { id: '1', name: 'Kristoffer Myhrene', email: 'kristoffer@company.com', avatar: '👑', skillLevel: 8 },
+  { id: '2', name: 'Henrik Tomassen', email: 'camilla@company.com', avatar: '🚀', skillLevel: 8 },
+  { id: '3', name: 'Henrik Bakken', email: 'henrik@company.com', avatar: '⭐', skillLevel: 7 },
+  { id: '4', name: 'Marte Eriksen', email: 'marte@company.com', avatar: '💎', skillLevel: 7 },
+  { id: '5', name: 'Andreas Haugen', email: 'andreas@company.com', avatar: '🔥', skillLevel: 7 },
+  { id: '6', name: 'Silje Schultz', email: 'silje@company.com', avatar: '⚡', skillLevel: 7 },
   { id: '7', name: 'Thomas Aas', email: 'thomas@company.com', avatar: '🎯', skillLevel: 7 },
-  { id: '8', name: 'Ingrid Fossum', email: 'ingrid@company.com', avatar: '🌟', skillLevel: 7 },
-  { id: '9', name: 'Erik Nilsen', email: 'erik@company.com', avatar: '💪', skillLevel: 6 },
+  { id: '8', name: 'Ingrid Fossum', email: 'ingrid@company.com', avatar: '🌟', skillLevel: 6 },
+  { id: '9', name: 'Eirik Nilsen', email: 'erik@company.com', avatar: '💪', skillLevel: 6 },
   { id: '10', name: 'Mia Pedersen', email: 'mia@company.com', avatar: '🎪', skillLevel: 6 }
 ];
 
