@@ -239,6 +239,12 @@ export default function Dashboard() {
     
     // If no SMS records yet, use a placeholder ID for the connection
     const viewingSmsId = latestSmsId || 'pending';
+    
+    console.log('🔌 SSE connection details:', {
+      latestSmsId,
+      viewingSmsId,
+      sentSmsRecordsCount: sentSmsRecords.length
+    });
 
     console.log(`🔌 Connecting to SSE for SMS: ${viewingSmsId}`, {
       userId: user.uid,
@@ -311,7 +317,7 @@ export default function Dashboard() {
       console.log('🔌 Closing SSE connection');
       eventSource.close();
     };
-  }, [user, sentSmsRecords.length]);
+  }, [user, sentSmsRecords.length, sentSmsRecords[0]?.firestoreId]);
 
   useEffect(() => {
     if (user) {
