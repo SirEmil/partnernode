@@ -33,8 +33,8 @@ interface LeaderboardEntry {
 const dummyData: LeaderboardEntry[] = [
   {
     id: '1',
-    name: 'Alexander Hansen',
-    email: 'alexander@company.com',
+    name: 'Kristoffer Myhre',
+    email: 'kristoffer@company.com',
     deals: 5,
     revenue: 33960, // 3x7990 + 1x6990 + 1x2990 = 23970 + 6990 + 2990 = 33960
     avgDealValue: 6792,
@@ -45,8 +45,8 @@ const dummyData: LeaderboardEntry[] = [
   },
   {
     id: '2',
-    name: 'Emma Johansen',
-    email: 'emma@company.com',
+    name: 'Camilla Solberg',
+    email: 'camilla@company.com',
     deals: 4,
     revenue: 28960, // 3x7990 + 1x6990 = 23970 + 6990 = 28960
     avgDealValue: 7240,
@@ -57,8 +57,8 @@ const dummyData: LeaderboardEntry[] = [
   },
   {
     id: '3',
-    name: 'Lars Andersen',
-    email: 'lars@company.com',
+    name: 'Henrik Bakken',
+    email: 'henrik@company.com',
     deals: 4,
     revenue: 24980, // 2x7990 + 1x6990 + 1x2990 = 15980 + 6990 + 2990 = 24980
     avgDealValue: 6245,
@@ -69,8 +69,8 @@ const dummyData: LeaderboardEntry[] = [
   },
   {
     id: '4',
-    name: 'Sofia Larsen',
-    email: 'sofia@company.com',
+    name: 'Marte Eriksen',
+    email: 'marte@company.com',
     deals: 3,
     revenue: 20970, // 2x7990 + 1x6990 = 15980 + 6990 = 20970
     avgDealValue: 6990,
@@ -81,8 +81,8 @@ const dummyData: LeaderboardEntry[] = [
   },
   {
     id: '5',
-    name: 'Magnus Olsen',
-    email: 'magnus@company.com',
+    name: 'Andreas Haugen',
+    email: 'andreas@company.com',
     deals: 3,
     revenue: 18980, // 1x7990 + 1x6990 + 1x2990 = 7990 + 6990 + 2990 = 18980
     avgDealValue: 6327,
@@ -93,8 +93,8 @@ const dummyData: LeaderboardEntry[] = [
   },
   {
     id: '6',
-    name: 'Ingrid Berg',
-    email: 'ingrid@company.com',
+    name: 'Silje Nordby',
+    email: 'silje@company.com',
     deals: 3,
     revenue: 14980, // 1x7990 + 1x6990 = 7990 + 6990 = 14980
     avgDealValue: 4993,
@@ -105,8 +105,8 @@ const dummyData: LeaderboardEntry[] = [
   },
   {
     id: '7',
-    name: 'Erik Nilsen',
-    email: 'erik@company.com',
+    name: 'Thomas Aas',
+    email: 'thomas@company.com',
     deals: 2,
     revenue: 10980, // 1x7990 + 1x2990 = 7990 + 2990 = 10980
     avgDealValue: 5490,
@@ -117,8 +117,8 @@ const dummyData: LeaderboardEntry[] = [
   },
   {
     id: '8',
-    name: 'Mia Pedersen',
-    email: 'mia@company.com',
+    name: 'Ingrid Fossum',
+    email: 'ingrid@company.com',
     deals: 2,
     revenue: 9980, // 1x6990 + 1x2990 = 6990 + 2990 = 9980
     avgDealValue: 4990,
@@ -275,13 +275,12 @@ export default function Leaderboard() {
                       <div className="text-xl">{entry.avatar}</div>
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">{entry.name}</h3>
-                        <p className="text-gray-500 text-xs">{entry.email}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Stats */}
-                  <div className="flex items-center space-x-6">
+                  <div className="flex items-center space-x-8">
                     {/* Deals */}
                     <div className="text-center">
                       <div className="flex items-center space-x-1">
@@ -307,17 +306,6 @@ export default function Leaderboard() {
                         <span className="text-lg font-bold text-gray-900">{formatCurrency(entry.avgDealValue)}</span>
                       </div>
                       <p className="text-blue-600 text-xs font-medium">Avg Deal</p>
-                    </div>
-
-                    {/* Change */}
-                    <div className="text-center">
-                      <div className="flex items-center space-x-1">
-                        <TrendingUp className={`w-4 h-4 ${entry.change >= 0 ? 'text-green-500' : 'text-red-500'}`} />
-                        <span className={`text-lg font-bold ${entry.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {entry.change >= 0 ? '+' : ''}{entry.change}%
-                        </span>
-                      </div>
-                      <p className="text-gray-500 text-xs font-medium">vs Last Week</p>
                     </div>
                   </div>
                 </div>
