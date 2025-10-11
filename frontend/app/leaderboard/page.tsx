@@ -35,9 +35,9 @@ const dummyData: LeaderboardEntry[] = [
     id: '1',
     name: 'Alexander Hansen',
     email: 'alexander@company.com',
-    deals: 8,
-    revenue: 42000,
-    avgDealValue: 5250,
+    deals: 5,
+    revenue: 33960, // 3x7990 + 1x6990 + 1x2990 = 23970 + 6990 + 2990 = 33960
+    avgDealValue: 6792,
     rank: 1,
     avatar: '👑',
     change: 25.3,
@@ -47,9 +47,9 @@ const dummyData: LeaderboardEntry[] = [
     id: '2',
     name: 'Emma Johansen',
     email: 'emma@company.com',
-    deals: 7,
-    revenue: 38500,
-    avgDealValue: 5500,
+    deals: 4,
+    revenue: 28960, // 3x7990 + 1x6990 = 23970 + 6990 = 28960
+    avgDealValue: 7240,
     rank: 2,
     avatar: '🚀',
     change: 18.7,
@@ -59,9 +59,9 @@ const dummyData: LeaderboardEntry[] = [
     id: '3',
     name: 'Lars Andersen',
     email: 'lars@company.com',
-    deals: 6,
-    revenue: 32000,
-    avgDealValue: 5333,
+    deals: 4,
+    revenue: 24980, // 2x7990 + 1x6990 + 1x2990 = 15980 + 6990 + 2990 = 24980
+    avgDealValue: 6245,
     rank: 3,
     avatar: '⭐',
     change: 12.4,
@@ -71,9 +71,9 @@ const dummyData: LeaderboardEntry[] = [
     id: '4',
     name: 'Sofia Larsen',
     email: 'sofia@company.com',
-    deals: 5,
-    revenue: 27500,
-    avgDealValue: 5500,
+    deals: 3,
+    revenue: 20970, // 2x7990 + 1x6990 = 15980 + 6990 = 20970
+    avgDealValue: 6990,
     rank: 4,
     avatar: '💎',
     change: 8.9,
@@ -83,9 +83,9 @@ const dummyData: LeaderboardEntry[] = [
     id: '5',
     name: 'Magnus Olsen',
     email: 'magnus@company.com',
-    deals: 5,
-    revenue: 25000,
-    avgDealValue: 5000,
+    deals: 3,
+    revenue: 18980, // 1x7990 + 1x6990 + 1x2990 = 7990 + 6990 + 2990 = 18980
+    avgDealValue: 6327,
     rank: 5,
     avatar: '🔥',
     change: 5.2,
@@ -95,9 +95,9 @@ const dummyData: LeaderboardEntry[] = [
     id: '6',
     name: 'Ingrid Berg',
     email: 'ingrid@company.com',
-    deals: 4,
-    revenue: 22000,
-    avgDealValue: 5500,
+    deals: 3,
+    revenue: 14980, // 1x7990 + 1x6990 = 7990 + 6990 = 14980
+    avgDealValue: 4993,
     rank: 6,
     avatar: '⚡',
     change: 2.1,
@@ -107,9 +107,9 @@ const dummyData: LeaderboardEntry[] = [
     id: '7',
     name: 'Erik Nilsen',
     email: 'erik@company.com',
-    deals: 4,
-    revenue: 18000,
-    avgDealValue: 4500,
+    deals: 2,
+    revenue: 10980, // 1x7990 + 1x2990 = 7990 + 2990 = 10980
+    avgDealValue: 5490,
     rank: 7,
     avatar: '🎯',
     change: -3.4,
@@ -119,9 +119,9 @@ const dummyData: LeaderboardEntry[] = [
     id: '8',
     name: 'Mia Pedersen',
     email: 'mia@company.com',
-    deals: 3,
-    revenue: 15000,
-    avgDealValue: 5000,
+    deals: 2,
+    revenue: 9980, // 1x6990 + 1x2990 = 6990 + 2990 = 9980
+    avgDealValue: 4990,
     rank: 8,
     avatar: '🌟',
     change: -8.7,
@@ -207,7 +207,7 @@ export default function Leaderboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm font-medium">Total Revenue</p>
-                    <p className="text-xl font-bold text-yellow-600">{formatCurrency(220000)}</p>
+                    <p className="text-xl font-bold text-yellow-600">{formatCurrency(163790)}</p>
                   </div>
                   <DollarSign className="w-6 h-6 text-yellow-500" />
                 </div>
@@ -217,7 +217,7 @@ export default function Leaderboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm font-medium">Total Deals</p>
-                    <p className="text-xl font-bold text-green-600">42</p>
+                    <p className="text-xl font-bold text-green-600">26</p>
                   </div>
                   <Target className="w-6 h-6 text-green-500" />
                 </div>
@@ -237,7 +237,7 @@ export default function Leaderboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm font-medium">Avg. Deal Value</p>
-                    <p className="text-xl font-bold text-purple-600">{formatCurrency(5238)}</p>
+                    <p className="text-xl font-bold text-purple-600">{formatCurrency(6300)}</p>
                   </div>
                   <BarChart3 className="w-6 h-6 text-purple-500" />
                 </div>
@@ -322,21 +322,18 @@ export default function Leaderboard() {
                   </div>
                 </div>
 
-                {/* Pricing Tiers */}
+                {/* Products */}
                 <div className="mt-3 pt-3 border-t border-gray-100">
                   <div className="flex items-center space-x-2 mb-1">
                     <Star className="w-3 h-3 text-purple-500" />
-                    <span className="text-purple-600 text-xs font-medium">Pricing Tiers Sold:</span>
+                    <span className="text-purple-600 text-xs font-medium">Products Sold:</span>
                   </div>
                   <div className="flex flex-wrap gap-1">
                     <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-md border border-green-200">
-                      Premium (7990 NOK)
+                      Standard Google
                     </span>
                     <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-md border border-blue-200">
-                      Standard (6990 NOK)
-                    </span>
-                    <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-md border border-orange-200">
-                      Basic (2990 NOK)
+                      Katalog opprydding
                     </span>
                   </div>
                 </div>
