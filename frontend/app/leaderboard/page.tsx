@@ -53,8 +53,8 @@ const dummyUsers: DummyUser[] = [
   { id: '10', name: 'Mia Pedersen', email: 'mia@company.com', avatar: '🎪', skillLevel: 5 }
 ];
 
-// Pricing tiers
-const PRICING_TIERS = [1990, 2990, 3990, 4990, 5990, 6990, 7990, 8990];
+// Pricing tiers (removed lowest 1990 and 2990)
+const PRICING_TIERS = [3990, 4990, 5990, 6990, 7990, 8990];
 
 // Simple seeded random number generator
 class SeededRandom {
@@ -83,27 +83,43 @@ function generateUserSales(user: DummyUser, weekNumber: number, year: number): L
   const seed = weekNumber * 1000 + year + parseInt(user.id) * 100;
   const random = new SeededRandom(seed);
 
-  // Skill level affects base performance
+  // Skill level affects base performance - make bots sell more
   const skillMultiplier = user.skillLevel / 10;
-  const baseDeals = Math.floor(random.nextFloat(3, 8) * skillMultiplier);
-  const deals = Math.max(1, Math.min(10, baseDeals + random.nextInt(-1, 2)));
+  const baseDeals = Math.floor(random.nextFloat(5, 12) * skillMultiplier);
+  const deals = Math.max(2, Math.min(15, baseDeals + random.nextInt(-1, 3)));
 
   // Generate realistic pricing combinations
   let revenue = 0;
   const dealBreakdown: number[] = [];
 
   for (let i = 0; i < deals; i++) {
-    // Higher skill = more premium deals
-    // Skill level determines which tier range to use
+    // Higher skill = more premium deals - make top sellers especially good
     const skillMultiplier = user.skillLevel / 10;
-    const tierIndex = Math.floor(random.nextFloat(0, PRICING_TIERS.length) * skillMultiplier);
-    const adjustedTierIndex = Math.min(tierIndex, PRICING_TIERS.length - 1);
     
-    // Add some randomness but bias towards higher tiers for skilled users
-    const randomOffset = random.nextInt(-1, 1);
-    const finalTierIndex = Math.max(0, Math.min(PRICING_TIERS.length - 1, adjustedTierIndex + randomOffset));
+    // Top sellers (skill 8-10) get much better pricing
+    let tierIndex;
+    if (user.skillLevel >= 8) {
+      // Top sellers: 60-90% chance for premium tiers (6990-8990)
+      const premiumChance = 0.6 + (user.skillLevel - 8) * 0.15; // 60-90%
+      if (random.next() < premiumChance) {
+        tierIndex = random.nextInt(3, PRICING_TIERS.length - 1); // 6990-8990
+      } else {
+        tierIndex = random.nextInt(1, 4); // 4990-6990
+      }
+    } else if (user.skillLevel >= 6) {
+      // Good sellers: 40-60% chance for premium tiers
+      const premiumChance = 0.4 + (user.skillLevel - 6) * 0.1; // 40-60%
+      if (random.next() < premiumChance) {
+        tierIndex = random.nextInt(2, PRICING_TIERS.length - 1); // 5990-8990
+      } else {
+        tierIndex = random.nextInt(0, 3); // 3990-5990
+      }
+    } else {
+      // Lower skill: more basic tiers
+      tierIndex = random.nextInt(0, 2); // 3990-4990
+    }
     
-    const tier = PRICING_TIERS[finalTierIndex];
+    const tier = PRICING_TIERS[tierIndex];
     revenue += tier;
     dealBreakdown.push(tier);
   }
