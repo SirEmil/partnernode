@@ -39,11 +39,12 @@ export const sendSSEUpdate = (smsId: string, data: any) => {
   const message = `data: ${JSON.stringify(data)}\n\n`;
   
   sseClients.forEach((client, clientId) => {
-    if (client.viewingSmsId === smsId) {
+    // Send to clients viewing this specific SMS OR clients with 'pending' (waiting for any SMS)
+    if (client.viewingSmsId === smsId || client.viewingSmsId === 'pending') {
       try {
         client.res.write(message);
         clientsNotified++;
-        console.log(`✅ Sent SSE update to client ${clientId} viewing SMS ${smsId}`);
+        console.log(`✅ Sent SSE update to client ${clientId} (viewing: ${client.viewingSmsId}) for SMS ${smsId}`);
       } catch (error) {
         console.error(`❌ Error sending SSE to client ${clientId}:`, error);
         sseClients.delete(clientId);
