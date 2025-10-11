@@ -299,7 +299,8 @@ router.post('/justcall-sms', async (req, res) => {
               smsId: originalSMS.id,
               contactNumber: contact_number,
               confirmedAt: responseTime,
-              response: body
+              response: body,
+              userId: (originalSMS as any).userId // Include the user who sent the SMS
             });
             const sseTime = Date.now() - sseStartTime;
             console.log(`📡 SSE update sent in ${sseTime}ms for SMS: ${originalSMS.id}`);
