@@ -54,7 +54,7 @@ const dummyUsers: DummyUser[] = [
 ];
 
 // Pricing tiers
-const PRICING_TIERS = [7990, 6990, 2990];
+const PRICING_TIERS = [1990, 2990, 3990, 4990, 5990, 6990, 7990, 8990];
 
 // Simple seeded random number generator
 class SeededRandom {
@@ -94,20 +94,16 @@ function generateUserSales(user: DummyUser, weekNumber: number, year: number): L
 
   for (let i = 0; i < deals; i++) {
     // Higher skill = more premium deals
-    const premiumChance = 0.3 + (user.skillLevel / 10) * 0.4; // 30-70% chance for premium
-    const standardChance = 0.4 + (user.skillLevel / 10) * 0.2; // 40-60% chance for standard
+    // Skill level determines which tier range to use
+    const skillMultiplier = user.skillLevel / 10;
+    const tierIndex = Math.floor(random.nextFloat(0, PRICING_TIERS.length) * skillMultiplier);
+    const adjustedTierIndex = Math.min(tierIndex, PRICING_TIERS.length - 1);
     
-    let tier;
-    const roll = random.next();
+    // Add some randomness but bias towards higher tiers for skilled users
+    const randomOffset = random.nextInt(-1, 1);
+    const finalTierIndex = Math.max(0, Math.min(PRICING_TIERS.length - 1, adjustedTierIndex + randomOffset));
     
-    if (roll < premiumChance) {
-      tier = PRICING_TIERS[0]; // 7990
-    } else if (roll < premiumChance + standardChance) {
-      tier = PRICING_TIERS[1]; // 6990
-    } else {
-      tier = PRICING_TIERS[2]; // 2990
-    }
-    
+    const tier = PRICING_TIERS[finalTierIndex];
     revenue += tier;
     dealBreakdown.push(tier);
   }
@@ -374,6 +370,9 @@ export default function Leaderboard() {
                     </span>
                     <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-md border border-blue-200">
                       Katalog opprydding
+                    </span>
+                    <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-md border border-purple-200">
+                      Premium Package
                     </span>
                   </div>
                 </div>
