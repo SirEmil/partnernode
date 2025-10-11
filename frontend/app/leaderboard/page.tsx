@@ -141,9 +141,9 @@ function getWeekNumber(date: Date): number {
 }
 
 // Generate leaderboard data
-function generateLeaderboardData(): LeaderboardEntry[] {
+function generateLeaderboardData(debugWeek: number | null = null): LeaderboardEntry[] {
   const now = new Date();
-  const weekNumber = getWeekNumber(now);
+  const weekNumber = debugWeek !== null ? debugWeek : getWeekNumber(now);
   const year = now.getFullYear();
 
   // Generate sales for all users
@@ -200,6 +200,7 @@ export default function Leaderboard() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
+  const [debugWeek, setDebugWeek] = useState<number | null>(null);
 
   useEffect(() => {
     if (!loading && (!user || user.authLevel !== 1)) {
@@ -208,10 +209,10 @@ export default function Leaderboard() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    // Generate leaderboard data when component mounts
-    const data = generateLeaderboardData();
+    // Generate leaderboard data when component mounts or debug week changes
+    const data = generateLeaderboardData(debugWeek);
     setLeaderboardData(data);
-  }, []);
+  }, [debugWeek]);
 
   if (loading) {
     return (
@@ -238,6 +239,39 @@ export default function Leaderboard() {
             <p className="text-lg text-gray-600 mb-4">
               🏆 Last week's top performers - Keep closing those deals! 🚀
             </p>
+            
+            {/* Debug Week Changer */}
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center justify-center space-x-4">
+                <span className="text-sm font-medium text-yellow-800">Debug Week:</span>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setDebugWeek(prev => Math.max(1, (prev || 1) - 1))}
+                    className="px-3 py-1 bg-yellow-200 text-yellow-800 rounded-md hover:bg-yellow-300 transition-colors text-sm font-medium"
+                  >
+                    ← Prev
+                  </button>
+                  <span className="px-3 py-1 bg-yellow-100 text-yellow-900 rounded-md text-sm font-bold min-w-[60px] text-center">
+                    {debugWeek || getWeekNumber(new Date())}
+                  </span>
+                  <button
+                    onClick={() => setDebugWeek(prev => (prev || 1) + 1)}
+                    className="px-3 py-1 bg-yellow-200 text-yellow-800 rounded-md hover:bg-yellow-300 transition-colors text-sm font-medium"
+                  >
+                    Next →
+                  </button>
+                  <button
+                    onClick={() => setDebugWeek(null)}
+                    className="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium"
+                  >
+                    Current
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-yellow-700 text-center mt-1">
+                {debugWeek ? `Showing Week ${debugWeek} data` : 'Showing current week data'}
+              </p>
+            </div>
             
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
