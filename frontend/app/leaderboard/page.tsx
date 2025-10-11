@@ -14,7 +14,8 @@ import {
   Crown,
   Zap,
   Target,
-  BarChart3
+  BarChart3,
+  ArrowLeft
 } from 'lucide-react';
 
 interface LeaderboardEntry {
@@ -158,9 +159,9 @@ function getWeekNumber(date: Date): number {
 }
 
 // Generate leaderboard data
-function generateLeaderboardData(debugWeek: number | null = null): LeaderboardEntry[] {
+function generateLeaderboardData(): LeaderboardEntry[] {
   const now = new Date();
-  const weekNumber = debugWeek !== null ? debugWeek : getWeekNumber(now);
+  const weekNumber = getWeekNumber(now);
   const year = now.getFullYear();
 
   // Generate sales for all users
@@ -217,7 +218,6 @@ export default function Leaderboard() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
-  const [debugWeek, setDebugWeek] = useState<number | null>(null);
 
   useEffect(() => {
     if (!loading && (!user || user.authLevel !== 1)) {
@@ -226,10 +226,10 @@ export default function Leaderboard() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    // Generate leaderboard data when component mounts or debug week changes
-    const data = generateLeaderboardData(debugWeek);
+    // Generate leaderboard data when component mounts
+    const data = generateLeaderboardData();
     setLeaderboardData(data);
-  }, [debugWeek]);
+  }, []);
 
   if (loading) {
     return (
@@ -248,6 +248,17 @@ export default function Leaderboard() {
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {/* Back Button */}
+          <div className="mb-4">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span className="text-sm font-medium">Back to Dashboard</span>
+            </button>
+          </div>
+          
           <div className="text-center">
             <div className="flex items-center justify-center mb-3">
               <Trophy className="w-8 h-8 text-yellow-500 mr-2" />
@@ -256,39 +267,6 @@ export default function Leaderboard() {
             <p className="text-lg text-gray-600 mb-4">
               🏆 Last week's top performers - Keep closing those deals! 🚀
             </p>
-            
-            {/* Debug Week Changer */}
-            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <div className="flex items-center justify-center space-x-4">
-                <span className="text-sm font-medium text-yellow-800">Debug Week:</span>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setDebugWeek(prev => Math.max(1, (prev || 1) - 1))}
-                    className="px-3 py-1 bg-yellow-200 text-yellow-800 rounded-md hover:bg-yellow-300 transition-colors text-sm font-medium"
-                  >
-                    ← Prev
-                  </button>
-                  <span className="px-3 py-1 bg-yellow-100 text-yellow-900 rounded-md text-sm font-bold min-w-[60px] text-center">
-                    {debugWeek || getWeekNumber(new Date())}
-                  </span>
-                  <button
-                    onClick={() => setDebugWeek(prev => (prev || 1) + 1)}
-                    className="px-3 py-1 bg-yellow-200 text-yellow-800 rounded-md hover:bg-yellow-300 transition-colors text-sm font-medium"
-                  >
-                    Next →
-                  </button>
-                  <button
-                    onClick={() => setDebugWeek(null)}
-                    className="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium"
-                  >
-                    Current
-                  </button>
-                </div>
-              </div>
-              <p className="text-xs text-yellow-700 text-center mt-1">
-                {debugWeek ? `Showing Week ${debugWeek} data` : 'Showing current week data'}
-              </p>
-            </div>
             
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
