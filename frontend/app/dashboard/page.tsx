@@ -219,13 +219,14 @@ export default function Dashboard() {
       sentSmsRecords: sentSmsRecords
     });
 
-    if (!user || !sentSmsRecords.length) {
-      console.log('🔌 SSE connection skipped:', {
-        reason: !user ? 'No user' : 'No SMS records',
-        user: !!user,
-        sentSmsRecordsLength: sentSmsRecords.length
-      });
+    if (!user) {
+      console.log('🔌 SSE connection skipped: No user');
       return;
+    }
+
+    // If no SMS records yet, establish connection anyway to receive future updates
+    if (!sentSmsRecords.length) {
+      console.log('🔌 SSE connection established without SMS records - ready for future updates');
     }
 
     // Check if user has required fields
@@ -235,18 +236,21 @@ export default function Dashboard() {
     }
 
     const latestSmsId = sentSmsRecords[0]?.firestoreId; // Most recent SMS
-    if (!latestSmsId) return;
+    
+    // If no SMS records yet, use a placeholder ID for the connection
+    const viewingSmsId = latestSmsId || 'pending';
 
-    console.log(`🔌 Connecting to SSE for SMS: ${latestSmsId}`, {
+    console.log(`🔌 Connecting to SSE for SMS: ${viewingSmsId}`, {
       userId: user.uid,
       userEmail: user.email,
       authLevel: user.authLevel,
-      latestSmsId
+      latestSmsId,
+      viewingSmsId
     });
 
     // EventSource doesn't support custom headers, so we'll pass them as query params
     const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
-    const sseUrl = `${API_BASE_URL}/api/sse?userId=${encodeURIComponent(user.uid)}&viewingSmsId=${encodeURIComponent(latestSmsId)}`;
+    const sseUrl = `${API_BASE_URL}/api/sse?userId=${encodeURIComponent(user.uid)}&viewingSmsId=${encodeURIComponent(viewingSmsId)}`;
     console.log(`🔌 SSE URL: ${sseUrl}`);
     const eventSource = new EventSource(sseUrl);
 
@@ -255,10 +259,10 @@ export default function Dashboard() {
         const data = JSON.parse(event.data);
         console.log('📡 SSE message received:', data);
 
-        if (data.type === 'contract_confirmed' && data.smsId === latestSmsId) {
+        if (data.type === 'contract_confirmed') {
           console.log('✅ Contract confirmed via SSE!', data);
           
-          // Update the SMS record immediately
+          // Update the SMS record immediately (match by SMS ID)
           setSentSmsRecords(prev => prev.map(sms => 
             sms.firestoreId === data.smsId 
               ? { 
@@ -300,7 +304,7 @@ export default function Dashboard() {
       console.log('🔌 Closing SSE connection');
       eventSource.close();
     };
-  }, [user, sentSmsRecords.length, sentSmsRecords[0]?.firestoreId]);
+  }, [user, sentSmsRecords.length]);
 
   useEffect(() => {
     if (user) {
