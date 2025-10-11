@@ -220,7 +220,7 @@ export default function Leaderboard() {
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
 
   useEffect(() => {
-    if (!loading && (!user || user.authLevel !== 1)) {
+    if (!loading && !user) {
       router.push('/dashboard');
     }
   }, [user, loading, router]);
@@ -239,7 +239,7 @@ export default function Leaderboard() {
     );
   }
 
-  if (!user || user.authLevel !== 1) {
+  if (!user) {
     return null;
   }
 

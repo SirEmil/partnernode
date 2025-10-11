@@ -644,6 +644,15 @@ export default function Dashboard() {
                 <span>My SMS Records</span>
               </button>
               
+              {/* Leaderboard - Available to everyone */}
+              <button
+                onClick={() => router.push('/leaderboard')}
+                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white rounded-lg hover:from-yellow-500 hover:to-yellow-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+              >
+                <Trophy className="w-4 h-4" />
+                <span className="font-medium">🏆 Leaderboard</span>
+              </button>
+              
               {/* Admin-only features */}
               {user?.authLevel === 1 && (
                 <>
@@ -660,13 +669,6 @@ export default function Dashboard() {
                   >
                     <Edit className="w-4 h-4" />
                     <span>Admin</span>
-                  </button>
-                  <button
-                    onClick={() => router.push('/leaderboard')}
-                    className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-                  >
-                    <Trophy className="w-4 h-4" />
-                    <span>Leaderboard</span>
                   </button>
                   <button
                     onClick={() => router.push('/users')}
