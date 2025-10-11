@@ -28,70 +28,142 @@ interface LeaderboardEntry {
   avatar: string;
   change: number; // percentage change from previous week
   streak: number; // consecutive weeks
+  skillLevel: number; // 1-10, affects performance
 }
 
-const dummyData: LeaderboardEntry[] = [
-  {
-    id: '1',
-    name: 'Kristoffer Myhre',
-    email: 'kristoffer@company.com',
-    deals: 8,
-    revenue: 49950, // 4x7990 + 2x6990 + 2x2990 = 31960 + 13980 + 5980 = 49950
-    avgDealValue: 6244,
-    rank: 1,
-    avatar: '👑',
-    change: 25.3,
-    streak: 4
-  },
-  {
-    id: '2',
-    name: 'Camilla Solberg',
-    email: 'camilla@company.com',
-    deals: 7,
-    revenue: 42960, // 3x7990 + 2x6990 + 2x2990 = 23970 + 13980 + 5980 = 42960
-    avgDealValue: 6137,
-    rank: 2,
-    avatar: '🚀',
-    change: 18.7,
-    streak: 3
-  },
-  {
-    id: '3',
-    name: 'Henrik Bakken',
-    email: 'henrik@company.com',
-    deals: 6,
-    revenue: 35970, // 3x7990 + 1x6990 + 2x2990 = 23970 + 6990 + 5980 = 35970
-    avgDealValue: 5995,
-    rank: 3,
-    avatar: '⭐',
-    change: 12.4,
-    streak: 5
-  },
-  {
-    id: '4',
-    name: 'Marte Eriksen',
-    email: 'marte@company.com',
-    deals: 6,
-    revenue: 33960, // 3x7990 + 1x6990 + 1x2990 = 23970 + 6990 + 2990 = 33960
-    avgDealValue: 5660,
-    rank: 4,
-    avatar: '💎',
-    change: 8.9,
-    streak: 2
-  },
-  {
-    id: '5',
-    name: 'Andreas Haugen',
-    email: 'andreas@company.com',
-    deals: 5,
-    revenue: 28960, // 3x7990 + 1x6990 = 23970 + 6990 = 28960
-    avgDealValue: 5792,
-    rank: 5,
-    avatar: '🔥',
-    change: 5.2,
-    streak: 3
-  }
+interface DummyUser {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string;
+  skillLevel: number; // 1-10, affects performance
+}
+
+// Dummy users with different skill levels
+const dummyUsers: DummyUser[] = [
+  { id: '1', name: 'Kristoffer Myhre', email: 'kristoffer@company.com', avatar: '👑', skillLevel: 10 },
+  { id: '2', name: 'Camilla Solberg', email: 'camilla@company.com', avatar: '🚀', skillLevel: 9 },
+  { id: '3', name: 'Henrik Bakken', email: 'henrik@company.com', avatar: '⭐', skillLevel: 8 },
+  { id: '4', name: 'Marte Eriksen', email: 'marte@company.com', avatar: '💎', skillLevel: 8 },
+  { id: '5', name: 'Andreas Haugen', email: 'andreas@company.com', avatar: '🔥', skillLevel: 7 },
+  { id: '6', name: 'Silje Nordby', email: 'silje@company.com', avatar: '⚡', skillLevel: 7 },
+  { id: '7', name: 'Thomas Aas', email: 'thomas@company.com', avatar: '🎯', skillLevel: 6 },
+  { id: '8', name: 'Ingrid Fossum', email: 'ingrid@company.com', avatar: '🌟', skillLevel: 6 },
+  { id: '9', name: 'Erik Nilsen', email: 'erik@company.com', avatar: '💪', skillLevel: 5 },
+  { id: '10', name: 'Mia Pedersen', email: 'mia@company.com', avatar: '🎪', skillLevel: 5 }
 ];
+
+// Pricing tiers
+const PRICING_TIERS = [7990, 6990, 2990];
+
+// Simple seeded random number generator
+class SeededRandom {
+  private seed: number;
+
+  constructor(seed: number) {
+    this.seed = seed;
+  }
+
+  next(): number {
+    this.seed = (this.seed * 9301 + 49297) % 233280;
+    return this.seed / 233280;
+  }
+
+  nextInt(min: number, max: number): number {
+    return Math.floor(this.next() * (max - min + 1)) + min;
+  }
+
+  nextFloat(min: number, max: number): number {
+    return this.next() * (max - min) + min;
+  }
+}
+
+// Generate realistic sales data for a user
+function generateUserSales(user: DummyUser, weekNumber: number, year: number): LeaderboardEntry {
+  const seed = weekNumber * 1000 + year + parseInt(user.id) * 100;
+  const random = new SeededRandom(seed);
+
+  // Skill level affects base performance
+  const skillMultiplier = user.skillLevel / 10;
+  const baseDeals = Math.floor(random.nextFloat(3, 8) * skillMultiplier);
+  const deals = Math.max(1, Math.min(10, baseDeals + random.nextInt(-1, 2)));
+
+  // Generate realistic pricing combinations
+  let revenue = 0;
+  const dealBreakdown: number[] = [];
+
+  for (let i = 0; i < deals; i++) {
+    // Higher skill = more premium deals
+    const premiumChance = 0.3 + (user.skillLevel / 10) * 0.4; // 30-70% chance for premium
+    const standardChance = 0.4 + (user.skillLevel / 10) * 0.2; // 40-60% chance for standard
+    
+    let tier;
+    const roll = random.next();
+    
+    if (roll < premiumChance) {
+      tier = PRICING_TIERS[0]; // 7990
+    } else if (roll < premiumChance + standardChance) {
+      tier = PRICING_TIERS[1]; // 6990
+    } else {
+      tier = PRICING_TIERS[2]; // 2990
+    }
+    
+    revenue += tier;
+    dealBreakdown.push(tier);
+  }
+
+  const avgDealValue = Math.round(revenue / deals);
+  
+  // Generate change based on skill and randomness
+  const change = random.nextFloat(-15, 30) + (user.skillLevel - 5) * 2;
+  
+  // Generate streak based on skill
+  const streak = Math.floor(random.nextFloat(1, 8) * skillMultiplier) + 1;
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    deals,
+    revenue,
+    avgDealValue,
+    rank: 0, // Will be set after sorting
+    avatar: user.avatar,
+    change: Math.round(change * 10) / 10,
+    streak,
+    skillLevel: user.skillLevel
+  };
+}
+
+// Get current week number
+function getWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
+// Generate leaderboard data
+function generateLeaderboardData(): LeaderboardEntry[] {
+  const now = new Date();
+  const weekNumber = getWeekNumber(now);
+  const year = now.getFullYear();
+
+  // Generate sales for all users
+  const allSales = dummyUsers.map(user => generateUserSales(user, weekNumber, year));
+
+  // Sort by revenue (descending) and take top 5
+  const topSales = allSales
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5)
+    .map((entry, index) => ({
+      ...entry,
+      rank: index + 1
+    }));
+
+  return topSales;
+}
 
 const getRankIcon = (rank: number) => {
   switch (rank) {
@@ -131,13 +203,19 @@ const formatCurrency = (amount: number) => {
 export default function Leaderboard() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>(dummyData);
+  const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
 
   useEffect(() => {
     if (!loading && (!user || user.authLevel !== 1)) {
       router.push('/dashboard');
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    // Generate leaderboard data when component mounts
+    const data = generateLeaderboardData();
+    setLeaderboardData(data);
+  }, []);
 
   if (loading) {
     return (
@@ -171,7 +249,9 @@ export default function Leaderboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm font-medium">Total Revenue</p>
-                    <p className="text-xl font-bold text-yellow-600">{formatCurrency(191800)}</p>
+                    <p className="text-xl font-bold text-yellow-600">
+                      {formatCurrency(leaderboardData.reduce((sum, entry) => sum + entry.revenue, 0))}
+                    </p>
                   </div>
                   <DollarSign className="w-6 h-6 text-yellow-500" />
                 </div>
@@ -181,7 +261,9 @@ export default function Leaderboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm font-medium">Total Deals</p>
-                    <p className="text-xl font-bold text-green-600">32</p>
+                    <p className="text-xl font-bold text-green-600">
+                      {leaderboardData.reduce((sum, entry) => sum + entry.deals, 0)}
+                    </p>
                   </div>
                   <Target className="w-6 h-6 text-green-500" />
                 </div>
@@ -191,7 +273,7 @@ export default function Leaderboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm font-medium">Top Sellers</p>
-                    <p className="text-xl font-bold text-blue-600">5</p>
+                    <p className="text-xl font-bold text-blue-600">{leaderboardData.length}</p>
                   </div>
                   <Users className="w-6 h-6 text-blue-500" />
                 </div>
@@ -201,7 +283,13 @@ export default function Leaderboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm font-medium">Avg. Deal Value</p>
-                    <p className="text-xl font-bold text-purple-600">{formatCurrency(5994)}</p>
+                    <p className="text-xl font-bold text-purple-600">
+                      {formatCurrency(
+                        leaderboardData.length > 0 
+                          ? Math.round(leaderboardData.reduce((sum, entry) => sum + entry.avgDealValue, 0) / leaderboardData.length)
+                          : 0
+                      )}
+                    </p>
                   </div>
                   <BarChart3 className="w-6 h-6 text-purple-500" />
                 </div>
