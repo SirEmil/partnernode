@@ -35,9 +35,9 @@ const dummyData: LeaderboardEntry[] = [
     id: '1',
     name: 'Kristoffer Myhre',
     email: 'kristoffer@company.com',
-    deals: 5,
-    revenue: 33960, // 3x7990 + 1x6990 + 1x2990 = 23970 + 6990 + 2990 = 33960
-    avgDealValue: 6792,
+    deals: 8,
+    revenue: 49950, // 4x7990 + 2x6990 + 2x2990 = 31960 + 13980 + 5980 = 49950
+    avgDealValue: 6244,
     rank: 1,
     avatar: '👑',
     change: 25.3,
@@ -47,9 +47,9 @@ const dummyData: LeaderboardEntry[] = [
     id: '2',
     name: 'Camilla Solberg',
     email: 'camilla@company.com',
-    deals: 4,
-    revenue: 28960, // 3x7990 + 1x6990 = 23970 + 6990 = 28960
-    avgDealValue: 7240,
+    deals: 7,
+    revenue: 42960, // 3x7990 + 2x6990 + 2x2990 = 23970 + 13980 + 5980 = 42960
+    avgDealValue: 6137,
     rank: 2,
     avatar: '🚀',
     change: 18.7,
@@ -59,9 +59,9 @@ const dummyData: LeaderboardEntry[] = [
     id: '3',
     name: 'Henrik Bakken',
     email: 'henrik@company.com',
-    deals: 4,
-    revenue: 24980, // 2x7990 + 1x6990 + 1x2990 = 15980 + 6990 + 2990 = 24980
-    avgDealValue: 6245,
+    deals: 6,
+    revenue: 35970, // 3x7990 + 1x6990 + 2x2990 = 23970 + 6990 + 5980 = 35970
+    avgDealValue: 5995,
     rank: 3,
     avatar: '⭐',
     change: 12.4,
@@ -71,9 +71,9 @@ const dummyData: LeaderboardEntry[] = [
     id: '4',
     name: 'Marte Eriksen',
     email: 'marte@company.com',
-    deals: 3,
-    revenue: 20970, // 2x7990 + 1x6990 = 15980 + 6990 = 20970
-    avgDealValue: 6990,
+    deals: 6,
+    revenue: 33960, // 3x7990 + 1x6990 + 1x2990 = 23970 + 6990 + 2990 = 33960
+    avgDealValue: 5660,
     rank: 4,
     avatar: '💎',
     change: 8.9,
@@ -83,49 +83,13 @@ const dummyData: LeaderboardEntry[] = [
     id: '5',
     name: 'Andreas Haugen',
     email: 'andreas@company.com',
-    deals: 3,
-    revenue: 18980, // 1x7990 + 1x6990 + 1x2990 = 7990 + 6990 + 2990 = 18980
-    avgDealValue: 6327,
+    deals: 5,
+    revenue: 28960, // 3x7990 + 1x6990 = 23970 + 6990 = 28960
+    avgDealValue: 5792,
     rank: 5,
     avatar: '🔥',
     change: 5.2,
     streak: 3
-  },
-  {
-    id: '6',
-    name: 'Silje Nordby',
-    email: 'silje@company.com',
-    deals: 3,
-    revenue: 14980, // 1x7990 + 1x6990 = 7990 + 6990 = 14980
-    avgDealValue: 4993,
-    rank: 6,
-    avatar: '⚡',
-    change: 2.1,
-    streak: 1
-  },
-  {
-    id: '7',
-    name: 'Thomas Aas',
-    email: 'thomas@company.com',
-    deals: 2,
-    revenue: 10980, // 1x7990 + 1x2990 = 7990 + 2990 = 10980
-    avgDealValue: 5490,
-    rank: 7,
-    avatar: '🎯',
-    change: -3.4,
-    streak: 2
-  },
-  {
-    id: '8',
-    name: 'Ingrid Fossum',
-    email: 'ingrid@company.com',
-    deals: 2,
-    revenue: 9980, // 1x6990 + 1x2990 = 6990 + 2990 = 9980
-    avgDealValue: 4990,
-    rank: 8,
-    avatar: '🌟',
-    change: -8.7,
-    streak: 1
   }
 ];
 
@@ -207,7 +171,7 @@ export default function Leaderboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm font-medium">Total Revenue</p>
-                    <p className="text-xl font-bold text-yellow-600">{formatCurrency(163790)}</p>
+                    <p className="text-xl font-bold text-yellow-600">{formatCurrency(191800)}</p>
                   </div>
                   <DollarSign className="w-6 h-6 text-yellow-500" />
                 </div>
@@ -217,7 +181,7 @@ export default function Leaderboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm font-medium">Total Deals</p>
-                    <p className="text-xl font-bold text-green-600">26</p>
+                    <p className="text-xl font-bold text-green-600">32</p>
                   </div>
                   <Target className="w-6 h-6 text-green-500" />
                 </div>
@@ -226,8 +190,8 @@ export default function Leaderboard() {
               <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-600 text-sm font-medium">Active Sellers</p>
-                    <p className="text-xl font-bold text-blue-600">8</p>
+                    <p className="text-gray-600 text-sm font-medium">Top Sellers</p>
+                    <p className="text-xl font-bold text-blue-600">5</p>
                   </div>
                   <Users className="w-6 h-6 text-blue-500" />
                 </div>
@@ -237,7 +201,7 @@ export default function Leaderboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm font-medium">Avg. Deal Value</p>
-                    <p className="text-xl font-bold text-purple-600">{formatCurrency(6300)}</p>
+                    <p className="text-xl font-bold text-purple-600">{formatCurrency(5994)}</p>
                   </div>
                   <BarChart3 className="w-6 h-6 text-purple-500" />
                 </div>
