@@ -21,13 +21,13 @@ interface LeaderboardEntry {
   id: string;
   name: string;
   email: string;
-  closes: number;
+  deals: number;
   revenue: number;
-  products: string[];
+  avgDealValue: number;
   rank: number;
   avatar: string;
-  change: number; // percentage change
-  streak: number; // consecutive days
+  change: number; // percentage change from previous week
+  streak: number; // consecutive weeks
 }
 
 const dummyData: LeaderboardEntry[] = [
@@ -35,97 +35,97 @@ const dummyData: LeaderboardEntry[] = [
     id: '1',
     name: 'Alexander Hansen',
     email: 'alexander@company.com',
-    closes: 47,
-    revenue: 2840000,
-    products: ['Premium Package', 'Enterprise Solution', 'Basic Plan'],
+    deals: 8,
+    revenue: 42000,
+    avgDealValue: 5250,
     rank: 1,
     avatar: '👑',
-    change: 23.5,
-    streak: 12
+    change: 25.3,
+    streak: 4
   },
   {
     id: '2',
     name: 'Emma Johansen',
     email: 'emma@company.com',
-    closes: 42,
-    revenue: 2650000,
-    products: ['Premium Package', 'Basic Plan', 'Starter Kit'],
+    deals: 7,
+    revenue: 38500,
+    avgDealValue: 5500,
     rank: 2,
     avatar: '🚀',
-    change: 18.2,
-    streak: 8
+    change: 18.7,
+    streak: 3
   },
   {
     id: '3',
     name: 'Lars Andersen',
     email: 'lars@company.com',
-    closes: 38,
-    revenue: 2320000,
-    products: ['Enterprise Solution', 'Premium Package'],
+    deals: 6,
+    revenue: 32000,
+    avgDealValue: 5333,
     rank: 3,
     avatar: '⭐',
-    change: 15.7,
-    streak: 15
+    change: 12.4,
+    streak: 5
   },
   {
     id: '4',
     name: 'Sofia Larsen',
     email: 'sofia@company.com',
-    closes: 35,
-    revenue: 1980000,
-    products: ['Basic Plan', 'Starter Kit', 'Premium Package'],
+    deals: 5,
+    revenue: 27500,
+    avgDealValue: 5500,
     rank: 4,
     avatar: '💎',
-    change: 12.3,
-    streak: 6
+    change: 8.9,
+    streak: 2
   },
   {
     id: '5',
     name: 'Magnus Olsen',
     email: 'magnus@company.com',
-    closes: 32,
-    revenue: 1870000,
-    products: ['Enterprise Solution', 'Basic Plan'],
+    deals: 5,
+    revenue: 25000,
+    avgDealValue: 5000,
     rank: 5,
     avatar: '🔥',
-    change: 8.9,
-    streak: 9
+    change: 5.2,
+    streak: 3
   },
   {
     id: '6',
     name: 'Ingrid Berg',
     email: 'ingrid@company.com',
-    closes: 29,
-    revenue: 1650000,
-    products: ['Premium Package', 'Starter Kit'],
+    deals: 4,
+    revenue: 22000,
+    avgDealValue: 5500,
     rank: 6,
     avatar: '⚡',
-    change: 5.4,
-    streak: 4
+    change: 2.1,
+    streak: 1
   },
   {
     id: '7',
     name: 'Erik Nilsen',
     email: 'erik@company.com',
-    closes: 26,
-    revenue: 1420000,
-    products: ['Basic Plan', 'Premium Package'],
+    deals: 4,
+    revenue: 18000,
+    avgDealValue: 4500,
     rank: 7,
     avatar: '🎯',
-    change: 2.1,
-    streak: 7
+    change: -3.4,
+    streak: 2
   },
   {
     id: '8',
     name: 'Mia Pedersen',
     email: 'mia@company.com',
-    closes: 23,
-    revenue: 1280000,
-    products: ['Starter Kit', 'Basic Plan'],
+    deals: 3,
+    revenue: 15000,
+    avgDealValue: 5000,
     rank: 8,
     avatar: '🌟',
-    change: -1.2,
-    streak: 3
+    change: -8.7,
+    streak: 1
   }
 ];
 
@@ -195,10 +195,10 @@ export default function Leaderboard() {
           <div className="text-center">
             <div className="flex items-center justify-center mb-3">
               <Trophy className="w-8 h-8 text-yellow-500 mr-2" />
-              <h1 className="text-3xl font-bold text-gray-900">Sales Leaderboard</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Google Profiles Sales</h1>
             </div>
             <p className="text-lg text-gray-600 mb-4">
-              🏆 Top performers this month - Keep crushing those goals! 🚀
+              🏆 Last week's top performers - Keep closing those deals! 🚀
             </p>
             
             {/* Stats Cards */}
@@ -207,7 +207,7 @@ export default function Leaderboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm font-medium">Total Revenue</p>
-                    <p className="text-xl font-bold text-yellow-600">{formatCurrency(16010000)}</p>
+                    <p className="text-xl font-bold text-yellow-600">{formatCurrency(220000)}</p>
                   </div>
                   <DollarSign className="w-6 h-6 text-yellow-500" />
                 </div>
@@ -216,8 +216,8 @@ export default function Leaderboard() {
               <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-600 text-sm font-medium">Total Closes</p>
-                    <p className="text-xl font-bold text-green-600">272</p>
+                    <p className="text-gray-600 text-sm font-medium">Total Deals</p>
+                    <p className="text-xl font-bold text-green-600">42</p>
                   </div>
                   <Target className="w-6 h-6 text-green-500" />
                 </div>
@@ -236,8 +236,8 @@ export default function Leaderboard() {
               <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-600 text-sm font-medium">Avg. Revenue</p>
-                    <p className="text-xl font-bold text-purple-600">{formatCurrency(2001250)}</p>
+                    <p className="text-gray-600 text-sm font-medium">Avg. Deal Value</p>
+                    <p className="text-xl font-bold text-purple-600">{formatCurrency(5238)}</p>
                   </div>
                   <BarChart3 className="w-6 h-6 text-purple-500" />
                 </div>
@@ -282,13 +282,13 @@ export default function Leaderboard() {
 
                   {/* Stats */}
                   <div className="flex items-center space-x-6">
-                    {/* Closes */}
+                    {/* Deals */}
                     <div className="text-center">
                       <div className="flex items-center space-x-1">
                         <Target className="w-4 h-4 text-green-500" />
-                        <span className="text-lg font-bold text-gray-900">{entry.closes}</span>
+                        <span className="text-lg font-bold text-gray-900">{entry.deals}</span>
                       </div>
-                      <p className="text-green-600 text-xs font-medium">Closes</p>
+                      <p className="text-green-600 text-xs font-medium">Deals</p>
                     </div>
 
                     {/* Revenue */}
@@ -300,6 +300,15 @@ export default function Leaderboard() {
                       <p className="text-yellow-600 text-xs font-medium">Revenue</p>
                     </div>
 
+                    {/* Avg Deal Value */}
+                    <div className="text-center">
+                      <div className="flex items-center space-x-1">
+                        <BarChart3 className="w-4 h-4 text-blue-500" />
+                        <span className="text-lg font-bold text-gray-900">{formatCurrency(entry.avgDealValue)}</span>
+                      </div>
+                      <p className="text-blue-600 text-xs font-medium">Avg Deal</p>
+                    </div>
+
                     {/* Change */}
                     <div className="text-center">
                       <div className="flex items-center space-x-1">
@@ -308,35 +317,27 @@ export default function Leaderboard() {
                           {entry.change >= 0 ? '+' : ''}{entry.change}%
                         </span>
                       </div>
-                      <p className="text-gray-500 text-xs font-medium">Change</p>
-                    </div>
-
-                    {/* Streak */}
-                    <div className="text-center">
-                      <div className="flex items-center space-x-1">
-                        <Zap className="w-4 h-4 text-orange-500" />
-                        <span className="text-lg font-bold text-gray-900">{entry.streak}</span>
-                      </div>
-                      <p className="text-orange-600 text-xs font-medium">Streak</p>
+                      <p className="text-gray-500 text-xs font-medium">vs Last Week</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Products */}
+                {/* Pricing Tiers */}
                 <div className="mt-3 pt-3 border-t border-gray-100">
                   <div className="flex items-center space-x-2 mb-1">
                     <Star className="w-3 h-3 text-purple-500" />
-                    <span className="text-purple-600 text-xs font-medium">Products:</span>
+                    <span className="text-purple-600 text-xs font-medium">Pricing Tiers Sold:</span>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {entry.products.map((product, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-md border border-purple-200"
-                      >
-                        {product}
-                      </span>
-                    ))}
+                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-md border border-green-200">
+                      Premium (7990 NOK)
+                    </span>
+                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-md border border-blue-200">
+                      Standard (6990 NOK)
+                    </span>
+                    <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-md border border-orange-200">
+                      Basic (2990 NOK)
+                    </span>
                   </div>
                 </div>
               </div>
