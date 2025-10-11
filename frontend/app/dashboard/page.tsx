@@ -91,6 +91,13 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [resendTimer]);
 
+  // Helper function to validate and format numbers only
+  const handleNumberInput = (value: string, setter: (value: string) => void) => {
+    // Remove all non-digit characters
+    const numbersOnly = value.replace(/\D/g, '');
+    setter(numbersOnly);
+  };
+
   // Helper function to format Norwegian phone numbers for API
   const formatPhoneForAPI = (phone: string) => {
     if (!phone) return phone;
@@ -837,7 +844,7 @@ export default function Dashboard() {
                       <input
                         type="tel"
                         value={smsPhone}
-                        onChange={(e) => setSmsPhone(e.target.value)}
+                        onChange={(e) => handleNumberInput(e.target.value, setSmsPhone)}
                         placeholder="41234567"
                         className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
@@ -1024,7 +1031,7 @@ export default function Dashboard() {
                         <input
                           type="text"
                           value={manualTemplateData.orgnr}
-                          onChange={(e) => setManualTemplateData({...manualTemplateData, orgnr: e.target.value})}
+                          onChange={(e) => handleNumberInput(e.target.value, (value) => setManualTemplateData({...manualTemplateData, orgnr: value}))}
                           placeholder="Enter organization number to search"
                           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-green-50"
                         />
@@ -1055,7 +1062,7 @@ export default function Dashboard() {
                       <input
                         type="text"
                         value={manualTemplateData.price}
-                        onChange={(e) => setManualTemplateData({...manualTemplateData, price: e.target.value})}
+                        onChange={(e) => handleNumberInput(e.target.value, (value) => setManualTemplateData({...manualTemplateData, price: value}))}
                         placeholder="Override product price"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
@@ -1124,7 +1131,7 @@ export default function Dashboard() {
                         <input
                           type="tel"
                           value={manualTemplateData.phone}
-                          onChange={(e) => setManualTemplateData({...manualTemplateData, phone: e.target.value})}
+                          onChange={(e) => handleNumberInput(e.target.value, (value) => setManualTemplateData({...manualTemplateData, phone: value}))}
                           placeholder="41234567"
                           className="flex-1 px-3 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
