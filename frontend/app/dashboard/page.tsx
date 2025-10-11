@@ -261,17 +261,24 @@ export default function Dashboard() {
 
         if (data.type === 'contract_confirmed') {
           console.log('✅ Contract confirmed via SSE!', data);
+          console.log('🔍 Current SMS records:', sentSmsRecords);
+          console.log('🔍 Looking for SMS with firestoreId:', data.smsId);
           
           // Update the SMS record immediately (match by SMS ID)
-          setSentSmsRecords(prev => prev.map(sms => 
-            sms.firestoreId === data.smsId 
-              ? { 
-                  ...sms, 
-                  contractConfirmed: true, 
-                  contractConfirmedAt: new Date(data.confirmedAt) 
-                }
-              : sms
-          ));
+          setSentSmsRecords(prev => {
+            const updated = prev.map(sms => {
+              console.log(`🔍 Comparing SMS ${sms.firestoreId} with ${data.smsId}:`, sms.firestoreId === data.smsId);
+              return sms.firestoreId === data.smsId 
+                ? { 
+                    ...sms, 
+                    contractConfirmed: true, 
+                    contractConfirmedAt: new Date(data.confirmedAt) 
+                  }
+                : sms;
+            });
+            console.log('🔍 Updated SMS records:', updated);
+            return updated;
+          });
 
           // Show success toast
           toast.success(`Contract confirmed by ${data.contactNumber}!`, {
@@ -497,6 +504,7 @@ export default function Dashboard() {
 
       if (response.ok) {
         const result = await response.json();
+        console.log('📱 SMS API Response:', result);
         toast.success('SMS sent successfully!');
         
         // Store SMS record for tracking
@@ -508,6 +516,8 @@ export default function Dashboard() {
           sentAt: new Date(),
           contractConfirmed: false
         };
+        
+        console.log('📱 Created SMS record:', smsRecord);
         
         setSentSmsRecords(prev => [smsRecord, ...prev]);
         
