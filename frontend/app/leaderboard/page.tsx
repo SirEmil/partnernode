@@ -39,18 +39,18 @@ interface DummyUser {
   skillLevel: number; // 1-10, affects performance
 }
 
-// Dummy users with different skill levels
+// Dummy users with higher average skill levels
 const dummyUsers: DummyUser[] = [
   { id: '1', name: 'Kristoffer Myhre', email: 'kristoffer@company.com', avatar: '👑', skillLevel: 10 },
-  { id: '2', name: 'Camilla Solberg', email: 'camilla@company.com', avatar: '🚀', skillLevel: 9 },
-  { id: '3', name: 'Henrik Bakken', email: 'henrik@company.com', avatar: '⭐', skillLevel: 8 },
-  { id: '4', name: 'Marte Eriksen', email: 'marte@company.com', avatar: '💎', skillLevel: 8 },
-  { id: '5', name: 'Andreas Haugen', email: 'andreas@company.com', avatar: '🔥', skillLevel: 7 },
-  { id: '6', name: 'Silje Nordby', email: 'silje@company.com', avatar: '⚡', skillLevel: 7 },
-  { id: '7', name: 'Thomas Aas', email: 'thomas@company.com', avatar: '🎯', skillLevel: 6 },
-  { id: '8', name: 'Ingrid Fossum', email: 'ingrid@company.com', avatar: '🌟', skillLevel: 6 },
-  { id: '9', name: 'Erik Nilsen', email: 'erik@company.com', avatar: '💪', skillLevel: 5 },
-  { id: '10', name: 'Mia Pedersen', email: 'mia@company.com', avatar: '🎪', skillLevel: 5 }
+  { id: '2', name: 'Camilla Solberg', email: 'camilla@company.com', avatar: '🚀', skillLevel: 10 },
+  { id: '3', name: 'Henrik Bakken', email: 'henrik@company.com', avatar: '⭐', skillLevel: 9 },
+  { id: '4', name: 'Marte Eriksen', email: 'marte@company.com', avatar: '💎', skillLevel: 9 },
+  { id: '5', name: 'Andreas Haugen', email: 'andreas@company.com', avatar: '🔥', skillLevel: 8 },
+  { id: '6', name: 'Silje Nordby', email: 'silje@company.com', avatar: '⚡', skillLevel: 8 },
+  { id: '7', name: 'Thomas Aas', email: 'thomas@company.com', avatar: '🎯', skillLevel: 7 },
+  { id: '8', name: 'Ingrid Fossum', email: 'ingrid@company.com', avatar: '🌟', skillLevel: 7 },
+  { id: '9', name: 'Erik Nilsen', email: 'erik@company.com', avatar: '💪', skillLevel: 6 },
+  { id: '10', name: 'Mia Pedersen', email: 'mia@company.com', avatar: '🎪', skillLevel: 6 }
 ];
 
 // Pricing tiers (removed lowest 1990 and 2990)
@@ -83,10 +83,11 @@ function generateUserSales(user: DummyUser, weekNumber: number, year: number): L
   const seed = weekNumber * 1000 + year + parseInt(user.id) * 100;
   const random = new SeededRandom(seed);
 
-  // Skill level affects base performance - make bots sell more
+  // Skill level affects base performance - make bots sell more with less volatility
   const skillMultiplier = user.skillLevel / 10;
-  const baseDeals = Math.floor(random.nextFloat(5, 12) * skillMultiplier);
-  const deals = Math.max(2, Math.min(15, baseDeals + random.nextInt(-1, 3)));
+  const baseDeals = Math.floor(random.nextFloat(6, 10) * skillMultiplier);
+  // Reduce volatility: smaller random variation
+  const deals = Math.max(3, Math.min(12, baseDeals + random.nextInt(-1, 1)));
 
   // Generate realistic pricing combinations
   let revenue = 0;
@@ -126,11 +127,11 @@ function generateUserSales(user: DummyUser, weekNumber: number, year: number): L
 
   const avgDealValue = Math.round(revenue / deals);
   
-  // Generate change based on skill and randomness
-  const change = random.nextFloat(-15, 30) + (user.skillLevel - 5) * 2;
+  // Generate change based on skill and randomness - less volatile
+  const change = random.nextFloat(-8, 15) + (user.skillLevel - 7) * 1.5;
   
-  // Generate streak based on skill
-  const streak = Math.floor(random.nextFloat(1, 8) * skillMultiplier) + 1;
+  // Generate streak based on skill - more consistent
+  const streak = Math.floor(random.nextFloat(3, 6) * skillMultiplier) + 2;
 
   return {
     id: user.id,
@@ -420,9 +421,6 @@ export default function Leaderboard() {
                     </span>
                     <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-md border border-blue-200">
                       Katalog opprydding
-                    </span>
-                    <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-md border border-purple-200">
-                      Premium Package
                     </span>
                   </div>
                 </div>
