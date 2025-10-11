@@ -85,12 +85,21 @@ const normalizeOkResponse = (text: string): boolean => {
 const findOriginalSMS = async (contactNumber: string, responseTime: Date) => {
   try {
     console.log(`🔍 Looking for SMS with contact number: "${contactNumber}"`);
+    console.log(`🔍 Contact number details:`, {
+      original: contactNumber,
+      length: contactNumber.length,
+      startsWithPlus: contactNumber.startsWith('+'),
+      isNumeric: /^\d+$/.test(contactNumber.replace(/^\+/, '')),
+      cleaned: contactNumber.replace(/^\+/, '')
+    });
     const startTime = Date.now();
     
-    // Try multiple phone number formats - SIMPLE APPROACH
+    // Try multiple phone number formats - COMPREHENSIVE APPROACH
     const phoneFormats = [
       `+${contactNumber}`,           // +4741275958
       contactNumber,                 // 4741275958
+      contactNumber.replace(/^\+/, ''), // Remove + if present
+      contactNumber.startsWith('+') ? contactNumber.substring(1) : `+${contactNumber}`, // Toggle + prefix
     ];
     
     console.log(`🔍 Searching for phone number "${contactNumber}" in formats:`, phoneFormats);

@@ -292,6 +292,8 @@ export default function Dashboard() {
 
     eventSource.onopen = () => {
       console.log('🔌 SSE connection opened successfully');
+      console.log('🔌 SSE connection state:', eventSource.readyState);
+      console.log('🔌 SSE URL:', sseUrl);
     };
 
     return () => {
