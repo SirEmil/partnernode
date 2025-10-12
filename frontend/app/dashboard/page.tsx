@@ -274,23 +274,19 @@ export default function Dashboard() {
 
         if (data.type === 'contract_confirmed') {
           console.log('✅ Contract confirmed via SSE!', data);
-          console.log('🔍 Current SMS records:', sentSmsRecords);
-          console.log('🔍 Looking for SMS with firestoreId:', data.smsId);
           
-          // Update the SMS record immediately (match by SMS ID)
+          // Simple: Mark the most recent SMS as confirmed
           setSentSmsRecords(prev => {
-            const updated = prev.map(sms => {
-              console.log(`🔍 Comparing SMS ${sms.firestoreId} with ${data.smsId}:`, sms.firestoreId === data.smsId);
-              return sms.firestoreId === data.smsId 
-                ? { 
-                    ...sms, 
-                    contractConfirmed: true, 
-                    contractConfirmedAt: new Date(data.confirmedAt) 
-                  }
-                : sms;
-            });
-            console.log('🔍 Updated SMS records:', updated);
-            return updated;
+            if (prev.length > 0) {
+              const updated = [...prev];
+              updated[0] = {
+                ...updated[0],
+                contractConfirmed: true,
+                contractConfirmedAt: new Date(data.confirmedAt)
+              };
+              return updated;
+            }
+            return prev;
           });
 
           // Show success toast
