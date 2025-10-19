@@ -13,6 +13,8 @@ export const metadata: Metadata = {
   authors: [{ name: 'Contract Sender Team' }],
   icons: {
     icon: '/fav.png',
+    shortcut: '/fav.png',
+    apple: '/fav.png',
   },
 };
 
