@@ -57,7 +57,8 @@ router.get('/', authenticateToken, async (req, res) => {
         authLevel: data.authLevel,
         createdAt: data.createdAt?.toDate?.() || data.createdAt,
         updatedAt: data.updatedAt?.toDate?.() || data.updatedAt,
-        lastLoginAt: authUser?.metadata?.lastSignInTime ? new Date(authUser.metadata.lastSignInTime) : null
+        lastLoginAt: authUser?.metadata?.lastSignInTime ? new Date(authUser.metadata.lastSignInTime) : null,
+        disabled: authUser?.disabled || false
       };
     });
 
@@ -142,6 +143,58 @@ router.put('/:userId', authenticateToken, async (req, res) => {
     console.error('Error updating user:', error);
     res.status(500).json({
       error: 'Failed to update user',
+      message: error.message
+    });
+  }
+});
+
+// Enable/disable user account (admin only)
+router.put('/:userId/status', authenticateToken, async (req, res) => {
+  try {
+    const adminUserId = req.user?.uid;
+    const targetUserId = req.params.userId;
+    const { disabled } = req.body;
+
+    if (!adminUserId) {
+      return res.status(401).json({
+        error: 'User not authenticated'
+      });
+    }
+
+    // Check if admin user has admin privileges
+    const adminDoc = await db.collection('users').doc(adminUserId).get();
+    const adminData = adminDoc.data();
+
+    if (!adminData || adminData.authLevel !== 1) {
+      return res.status(403).json({
+        error: 'Access denied',
+        message: 'Only admin users can modify user status'
+      });
+    }
+
+    // Validate input
+    if (typeof disabled !== 'boolean') {
+      return res.status(400).json({
+        error: 'Invalid disabled value',
+        message: 'disabled must be a boolean value'
+      });
+    }
+
+    // Update user status in Firebase Auth
+    await auth.updateUser(targetUserId, { disabled });
+
+    console.log(`👤 Admin ${adminUserId} ${disabled ? 'disabled' : 'enabled'} user ${targetUserId}`);
+
+    res.json({
+      success: true,
+      message: `User ${disabled ? 'disabled' : 'enabled'} successfully`,
+      disabled
+    });
+
+  } catch (error: any) {
+    console.error('Error updating user status:', error);
+    res.status(500).json({
+      error: 'Failed to update user status',
       message: error.message
     });
   }

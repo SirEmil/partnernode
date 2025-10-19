@@ -14,7 +14,11 @@ import {
   ChevronDown,
   ChevronUp,
   Users,
-  Edit2
+  Edit2,
+  UserCheck,
+  UserX,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -30,6 +34,7 @@ interface UserRecord {
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt?: Date;
+  disabled: boolean;
 }
 
 export default function UsersPage() {
@@ -40,6 +45,7 @@ export default function UsersPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [authLevelFilter, setAuthLevelFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -61,7 +67,7 @@ export default function UsersPage() {
 
   useEffect(() => {
     applyFilters();
-  }, [users, searchTerm, authLevelFilter, dateFilter, sortBy, sortOrder]);
+  }, [users, searchTerm, authLevelFilter, statusFilter, dateFilter, sortBy, sortOrder]);
 
   const fetchUsers = async () => {
     try {
@@ -116,6 +122,43 @@ export default function UsersPage() {
       lastName: userRecord.lastName || '',
       authLevel: userRecord.authLevel
     });
+  };
+
+  const handleToggleUserStatus = async (userRecord: UserRecord) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      
+      const response = await fetch(`${API_BASE_URL}/api/users/${userRecord.uid}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ disabled: !userRecord.disabled }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ User status updated successfully:', data);
+        
+        // Update the user in the local state
+        setUsers(prev => prev.map(u => 
+          u.uid === userRecord.uid 
+            ? { ...u, disabled: !userRecord.disabled, updatedAt: new Date() }
+            : u
+        ));
+        
+        toast.success(`User ${!userRecord.disabled ? 'disabled' : 'enabled'} successfully!`);
+      } else {
+        const error = await response.json();
+        console.error('Update user status error:', error);
+        toast.error(error.message || 'Failed to update user status');
+      }
+    } catch (error: any) {
+      console.error('Update user status error:', error);
+      toast.error(`Error updating user status: ${error.message || 'Network error'}`);
+    }
   };
 
   const handleSaveUser = async () => {
@@ -179,6 +222,15 @@ export default function UsersPage() {
     // Auth level filter
     if (authLevelFilter !== 'all') {
       filtered = filtered.filter(user => user.authLevel.toString() === authLevelFilter);
+    }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(user => {
+        if (statusFilter === 'active') return !user.disabled;
+        if (statusFilter === 'disabled') return user.disabled;
+        return true;
+      });
     }
 
     // Date filter
@@ -246,6 +298,23 @@ export default function UsersPage() {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const getStatusBadge = (disabled: boolean) => {
+    if (disabled) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          <XCircle className="w-3 h-3 mr-1" />
+          Disabled
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+        <CheckCircle className="w-3 h-3 mr-1" />
+        Active
+      </span>
+    );
   };
 
   const getAuthLevelBadge = (authLevel: number) => {
@@ -335,7 +404,7 @@ export default function UsersPage() {
 
           {/* Filter Options */}
           {showFilters && (
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-6 border-t border-gray-200">
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 pt-6 border-t border-gray-200">
               {/* Auth Level */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
@@ -347,6 +416,20 @@ export default function UsersPage() {
                   <option value="all">All Roles</option>
                   <option value="1">Admin</option>
                   <option value="0">User</option>
+                </select>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="disabled">Disabled</option>
                 </select>
               </div>
 
@@ -409,7 +492,7 @@ export default function UsersPage() {
               <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500">No users found</p>
               <p className="text-sm text-gray-400 mt-2">
-                {searchTerm || authLevelFilter !== 'all' || dateFilter !== 'all'
+                {searchTerm || authLevelFilter !== 'all' || statusFilter !== 'all' || dateFilter !== 'all'
                   ? 'Try adjusting your filters'
                   : 'No users have been created yet'
                 }
@@ -422,6 +505,7 @@ export default function UsersPage() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th>
@@ -456,6 +540,9 @@ export default function UsersPage() {
                         {getAuthLevelBadge(userRecord.authLevel)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
+                        {getStatusBadge(userRecord.disabled)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center text-sm text-gray-900">
                           <Clock className="w-4 h-4 mr-2 text-gray-400" />
                           {formatDate(userRecord.lastLoginAt)}
@@ -470,13 +557,30 @@ export default function UsersPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => handleEditUser(userRecord)}
-                          className="text-blue-600 hover:text-blue-900 transition-colors"
-                          title="Edit user"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleEditUser(userRecord)}
+                            className="text-blue-600 hover:text-blue-900 transition-colors"
+                            title="Edit user"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleToggleUserStatus(userRecord)}
+                            className={`transition-colors ${
+                              userRecord.disabled 
+                                ? 'text-green-600 hover:text-green-900' 
+                                : 'text-red-600 hover:text-red-900'
+                            }`}
+                            title={userRecord.disabled ? 'Enable user' : 'Disable user'}
+                          >
+                            {userRecord.disabled ? (
+                              <UserCheck className="w-4 h-4" />
+                            ) : (
+                              <UserX className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
