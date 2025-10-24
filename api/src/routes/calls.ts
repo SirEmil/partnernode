@@ -746,6 +746,35 @@ async function handleCallInitiated(webhookData: any) {
     // Try to get user ID from agent info or webhook data
     userId = data.agent_id ? data.agent_id.toString() : (webhookData.user_id || webhookData.userId || null);
     
+    // Try to map JustCall agent to Firebase user
+    if (data.agent_id) {
+      try {
+        console.log('🔍 Looking up Firebase user by JustCall agent ID:', data.agent_id);
+        const usersQuery = await db.collection('users')
+          .where('justcallAgentId', '==', data.agent_id.toString())
+          .limit(1)
+          .get();
+        
+        if (!usersQuery.empty) {
+          const firebaseUser = usersQuery.docs[0];
+          userId = firebaseUser.id; // Use Firebase user ID
+          console.log('✅ Mapped JustCall agent to Firebase user:', {
+            agentId: data.agent_id,
+            agentEmail: data.agent_email,
+            firebaseUserId: userId
+          });
+        } else {
+          console.log('⚠️ No Firebase user found for JustCall agent ID:', data.agent_id);
+          // Fallback to agent ID as string
+          userId = data.agent_id.toString();
+        }
+      } catch (error) {
+        console.log('⚠️ Error looking up Firebase user:', error);
+        // Fallback to agent ID as string
+        userId = data.agent_id.toString();
+      }
+    }
+    
     const callData = {
       justcallCallId: data.call_sid || webhookData.call_id || webhookData.id,
       fromNumber: data.justcall_number || webhookData.from_number || webhookData.from,
@@ -805,6 +834,34 @@ async function handleCallCompleted(webhookData: any) {
       const callLogDoc = callLogsQuery.docs[0];
       const callLogData = callLogDoc.data();
       
+      // Try to map JustCall agent to Firebase user if not already done
+      let firebaseUserId = callLogData.userId;
+      if (data.agent_id && (!firebaseUserId || firebaseUserId === data.agent_id?.toString())) {
+        try {
+          console.log('🔍 Looking up Firebase user by JustCall agent ID for update:', data.agent_id);
+          const usersQuery = await db.collection('users')
+            .where('justcallAgentId', '==', data.agent_id.toString())
+            .limit(1)
+            .get();
+          
+          if (!usersQuery.empty) {
+            const firebaseUser = usersQuery.docs[0];
+            firebaseUserId = firebaseUser.id; // Use Firebase user ID
+            console.log('✅ Updated Firebase user mapping:', {
+              agentId: data.agent_id,
+              agentEmail: data.agent_email,
+              firebaseUserId: firebaseUserId
+            });
+          } else {
+            console.log('⚠️ No Firebase user found for JustCall agent ID:', data.agent_id);
+            firebaseUserId = data.agent_id.toString();
+          }
+        } catch (error) {
+          console.log('⚠️ Error looking up Firebase user for update:', error);
+          firebaseUserId = data.agent_id.toString();
+        }
+      }
+      
       // Determine call status based on call info
       let status = 'completed';
       if (callInfo.type === 'missed') {
@@ -834,6 +891,7 @@ async function handleCallCompleted(webhookData: any) {
         holdTime: callDuration.hold_time || null,
         wrapUpTime: callDuration.wrap_up_time || null,
         queueWaitTime: callDuration.queue_wait_time || null,
+        userId: firebaseUserId, // Update with Firebase user ID
         updatedAt: new Date()
       });
       
@@ -863,6 +921,35 @@ async function handleCallCompleted(webhookData: any) {
       }
       
       userId = data.agent_id ? data.agent_id.toString() : null;
+      
+      // Try to map JustCall agent to Firebase user
+      if (data.agent_id) {
+        try {
+          console.log('🔍 Looking up Firebase user by JustCall agent ID:', data.agent_id);
+          const usersQuery = await db.collection('users')
+            .where('justcallAgentId', '==', data.agent_id.toString())
+            .limit(1)
+            .get();
+          
+          if (!usersQuery.empty) {
+            const firebaseUser = usersQuery.docs[0];
+            userId = firebaseUser.id; // Use Firebase user ID
+            console.log('✅ Mapped JustCall agent to Firebase user:', {
+              agentId: data.agent_id,
+              agentEmail: data.agent_email,
+              firebaseUserId: userId
+            });
+          } else {
+            console.log('⚠️ No Firebase user found for JustCall agent ID:', data.agent_id);
+            // Fallback to agent ID as string
+            userId = data.agent_id.toString();
+          }
+        } catch (error) {
+          console.log('⚠️ Error looking up Firebase user:', error);
+          // Fallback to agent ID as string
+          userId = data.agent_id.toString();
+        }
+      }
       
       const callData = {
         justcallCallId: justcallCallId,

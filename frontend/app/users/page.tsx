@@ -35,6 +35,7 @@ interface UserRecord {
   updatedAt: Date;
   lastLoginAt?: Date;
   disabled: boolean;
+  justcallAgentId?: string;
 }
 
 export default function UsersPage() {
@@ -54,7 +55,8 @@ export default function UsersPage() {
   const [editForm, setEditForm] = useState({
     firstName: '',
     lastName: '',
-    authLevel: 0
+    authLevel: 0,
+    justcallAgentId: ''
   });
 
   useEffect(() => {
@@ -120,7 +122,8 @@ export default function UsersPage() {
     setEditForm({
       firstName: userRecord.firstName || '',
       lastName: userRecord.lastName || '',
-      authLevel: userRecord.authLevel
+      authLevel: userRecord.authLevel,
+      justcallAgentId: userRecord.justcallAgentId || ''
     });
   };
 
@@ -203,7 +206,7 @@ export default function UsersPage() {
 
   const handleCancelEdit = () => {
     setEditingUser(null);
-    setEditForm({ firstName: '', lastName: '', authLevel: 0 });
+    setEditForm({ firstName: '', lastName: '', authLevel: 0, justcallAgentId: '' });
   };
 
   const applyFilters = () => {
@@ -638,6 +641,22 @@ export default function UsersPage() {
                   <option value={0}>User</option>
                   <option value={1}>Admin</option>
                 </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  JustCall Agent ID
+                </label>
+                <input
+                  type="text"
+                  value={editForm.justcallAgentId}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, justcallAgentId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter JustCall Agent ID (e.g., 440638)"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  This ID is used to link calls made through JustCall to this user
+                </p>
               </div>
             </div>
             

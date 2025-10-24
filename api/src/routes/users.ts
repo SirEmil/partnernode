@@ -58,7 +58,8 @@ router.get('/', authenticateToken, async (req, res) => {
         createdAt: data.createdAt?.toDate?.() || data.createdAt,
         updatedAt: data.updatedAt?.toDate?.() || data.updatedAt,
         lastLoginAt: authUser?.metadata?.lastSignInTime ? new Date(authUser.metadata.lastSignInTime) : null,
-        disabled: authUser?.disabled || false
+        disabled: authUser?.disabled || false,
+        justcallAgentId: data.justcallAgentId
       };
     });
 
@@ -93,7 +94,7 @@ router.put('/:userId', authenticateToken, async (req, res) => {
   try {
     const adminUserId = req.user?.uid;
     const targetUserId = req.params.userId;
-    const { firstName, lastName, authLevel } = req.body;
+    const { firstName, lastName, authLevel, justcallAgentId } = req.body;
 
     if (!adminUserId) {
       return res.status(401).json({
@@ -128,6 +129,7 @@ router.put('/:userId', authenticateToken, async (req, res) => {
     if (firstName !== undefined) updateData.firstName = firstName;
     if (lastName !== undefined) updateData.lastName = lastName;
     if (authLevel !== undefined) updateData.authLevel = authLevel;
+    if (justcallAgentId !== undefined) updateData.justcallAgentId = justcallAgentId;
 
     await db.collection('users').doc(targetUserId).update(updateData);
 
