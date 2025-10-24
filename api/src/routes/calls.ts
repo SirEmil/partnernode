@@ -1052,4 +1052,96 @@ async function handleCallCompleted(webhookData: any) {
   }
 }
 
+// Get call logs from JustCall API for a specific phone number
+router.get('/justcall-logs', authenticateToken, async (req, res) => {
+  try {
+    const { phone_number, limit = 50 } = req.query;
+    
+    if (!phone_number) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number is required'
+      });
+    }
+
+    const justcallApiKey = process.env.JUSTCALL_API_KEY;
+    const justcallApiSecret = process.env.JUSTCALL_API_SECRET;
+    
+    if (!justcallApiKey || !justcallApiSecret) {
+      return res.status(500).json({
+        success: false,
+        message: 'JustCall API credentials not configured'
+      });
+    }
+
+    // Create Basic Auth header for JustCall API
+    const auth = Buffer.from(`${justcallApiKey}:${justcallApiSecret}`).toString('base64');
+    
+    // Fetch call logs from JustCall API
+    const justcallResponse = await fetch(
+      `https://api.justcall.io/v2.1/calls?phone_number=${encodeURIComponent(phone_number as string)}&page=0&per_page=${limit}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!justcallResponse.ok) {
+      console.error('JustCall API error:', justcallResponse.status, justcallResponse.statusText);
+      return res.status(justcallResponse.status).json({
+        success: false,
+        message: 'Failed to fetch call logs from JustCall API'
+      });
+    }
+
+    const justcallData = await justcallResponse.json() as any;
+    
+    // Transform JustCall data to match our expected format
+    const transformedLogs = justcallData.data?.map((call: any) => ({
+      id: call.id,
+      justcallCallId: call.call_sid,
+      fromNumber: call.from_number,
+      toNumber: call.to_number,
+      callDirection: call.direction?.toLowerCase() || 'unknown',
+      status: call.status || 'unknown',
+      callType: call.call_type || (call.status === 'completed' ? 'answered' : 'unanswered'),
+      startTime: call.start_time ? new Date(call.start_time) : null,
+      endTime: call.end_time ? new Date(call.end_time) : null,
+      duration: call.duration || 0,
+      userId: call.agent_id?.toString() || 'unknown',
+      agentId: call.agent_id,
+      agentName: call.agent_name || 'Unknown Agent',
+      agentEmail: call.agent_email || '',
+      costIncurred: parseFloat(call.cost) || 0,
+      recordingUrl: call.recording_url || null,
+      callQuality: call.quality || '',
+      disposition: call.disposition || '',
+      notes: call.notes || '',
+      createdAt: call.created_at ? new Date(call.created_at) : new Date(),
+      updatedAt: call.updated_at ? new Date(call.updated_at) : new Date(),
+      metadata: {
+        source: 'justcall_api',
+        justcallData: call
+      }
+    })) || [];
+
+    res.json({
+      success: true,
+      callLogs: transformedLogs,
+      total: justcallData.total || transformedLogs.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching JustCall logs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while fetching call logs'
+    });
+  }
+});
+
 export default router;

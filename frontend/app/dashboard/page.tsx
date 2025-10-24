@@ -989,8 +989,8 @@ export default function Dashboard() {
 
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
       
-      // Fetch all call logs and filter by phone number
-      const response = await fetch(`${API_BASE_URL}/api/calls/call-logs/all?limit=100`, {
+      // Call our backend endpoint that will fetch from JustCall API
+      const response = await fetch(`${API_BASE_URL}/api/calls/justcall-logs?phone_number=${encodeURIComponent(phoneNumber)}&limit=50`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -998,17 +998,13 @@ export default function Dashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        // Filter call logs by the lead's phone number
-        const filteredLogs = data.callLogs.filter((log: any) => 
-          log.toNumber === phoneNumber || log.fromNumber === phoneNumber
-        );
-        setCallLogs(filteredLogs);
+        setCallLogs(data.callLogs || []);
       } else {
-        console.error('Failed to fetch call logs');
+        console.error('Failed to fetch call logs from JustCall');
         setCallLogs([]);
       }
     } catch (error) {
-      console.error('Error fetching call logs:', error);
+      console.error('Error fetching call logs from JustCall:', error);
       setCallLogs([]);
     } finally {
       setCallLogsLoading(false);
@@ -3167,6 +3163,9 @@ export default function Dashboard() {
                             <span className="text-sm font-medium text-gray-900">
                               {log.callType === 'answered' ? 'Answered' : 'Unanswered'}
                             </span>
+                            <span className="text-xs text-gray-500 px-2 py-1 bg-gray-100 rounded">
+                              {log.callDirection}
+                            </span>
                           </div>
                           <span className="text-xs text-gray-500">
                             {log.startTime ? new Date(log.startTime).toLocaleDateString() : 'Unknown date'}
@@ -3174,14 +3173,31 @@ export default function Dashboard() {
                         </div>
                         
                         <div className="text-sm text-gray-600 mb-2">
-                          <div>Duration: {log.duration ? `${log.duration}s` : 'N/A'}</div>
-                          <div>Cost: {log.costIncurred ? `$${log.costIncurred.toFixed(2)}` : 'N/A'}</div>
-                          {log.agentName && <div>Agent: {log.agentName}</div>}
+                          <div className="flex justify-between">
+                            <span>Duration: {log.duration ? `${log.duration}s` : 'N/A'}</span>
+                            <span>Cost: {log.costIncurred ? `$${log.costIncurred.toFixed(2)}` : 'N/A'}</span>
+                          </div>
+                          <div className="mt-1">
+                            <span className="text-xs text-gray-500">
+                              {log.fromNumber} → {log.toNumber}
+                            </span>
+                          </div>
+                          {log.agentName && (
+                            <div className="mt-1 text-xs text-gray-500">
+                              Agent: {log.agentName}
+                            </div>
+                          )}
                         </div>
                         
                         {log.notes && (
                           <div className="mt-2 p-2 bg-gray-100 rounded text-xs text-gray-700">
                             <strong>Notes:</strong> {log.notes}
+                          </div>
+                        )}
+                        
+                        {log.disposition && (
+                          <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700">
+                            <strong>Disposition:</strong> {log.disposition}
                           </div>
                         )}
                         
@@ -3197,6 +3213,10 @@ export default function Dashboard() {
                             </a>
                           </div>
                         )}
+                        
+                        <div className="mt-2 text-xs text-gray-400">
+                          Source: {log.metadata?.source || 'Unknown'}
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -16,7 +16,7 @@ interface DraggableDialerProps {
 
 export default function DraggableDialer({ isOpen, phoneNumber, metadata, onClose, isInCall, onCallStateChange }: DraggableDialerProps) {
   const [isMinimized, setIsMinimized] = useState(false);
-  const [size, setSize] = useState({ width: 350, height: 500 });
+  const [size, setSize] = useState({ width: 320, height: 500 });
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const nodeRef = useRef(null);
@@ -54,7 +54,7 @@ export default function DraggableDialer({ isOpen, phoneNumber, metadata, onClose
           isMinimized ? 'h-12' : ''
         }`}
         style={{
-          width: isMinimized ? 280 : size.width,
+          width: isMinimized ? 220 : size.width,
           height: isMinimized ? 48 : size.height,
           display: 'block',
           visibility: 'visible',
@@ -63,7 +63,7 @@ export default function DraggableDialer({ isOpen, phoneNumber, metadata, onClose
           position: 'fixed',
           top: '50px',
           left: '50px',
-          transform: 'scale(0.75)',
+          transform: 'scale(0.65)',
           transformOrigin: 'top left',
         }}
       >
@@ -113,8 +113,8 @@ export default function DraggableDialer({ isOpen, phoneNumber, metadata, onClose
             <ResizableBox
               width={size.width}
               height={size.height - 48}
-              minConstraints={[300, 400]}
-              maxConstraints={[500, 700]}
+              minConstraints={[280, 400]}
+              maxConstraints={[450, 700]}
               onResize={(e: any, data: any) => {
                 setSize({
                   width: data.size.width,
@@ -123,7 +123,7 @@ export default function DraggableDialer({ isOpen, phoneNumber, metadata, onClose
               }}
               handle={<div className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize bg-gray-300 hover:bg-gray-400" />}
             >
-              <div className="w-full h-full relative">
+              <div className="w-full h-full relative overflow-hidden">
                 {isLoading && (
                   <div className="absolute inset-0 bg-gray-100 flex items-center justify-center z-10">
                     <div className="text-center">
@@ -163,8 +163,15 @@ export default function DraggableDialer({ isOpen, phoneNumber, metadata, onClose
                                 style={{ 
                                   border: 'none',
                                   background: 'white',
-                                  minHeight: '100%',
-                                  minWidth: '100%'
+                                  height: '100%',
+                                  width: '100%',
+                                  overflow: 'hidden',
+                                  transform: 'scale(0.95)',
+                                  transformOrigin: 'top left',
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  zoom: '0.95'
                                 }}
                                 onLoad={() => {
                                   console.log('JustCall dialer iframe loaded');
