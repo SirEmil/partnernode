@@ -41,7 +41,8 @@ export default function Settings() {
     url: ''
   });
   const [smsSettings, setSmsSettings] = useState({
-    senderNumber: ''
+    senderNumber: '',
+    callingNumber: ''
   });
 
   useEffect(() => {
@@ -655,14 +656,15 @@ export default function Settings() {
                 <div className="mb-6">
                   <div className="flex items-center space-x-2 mb-4">
                     <Phone className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">SMS Configuration</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Phone Configuration</h3>
                   </div>
                   
                   <div className="bg-gray-50 rounded-lg p-6">
-                    <div className="space-y-4">
+                    <div className="space-y-6">
+                      {/* SMS Sender Number */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Sender Phone Number
+                          SMS Sender Number
                         </label>
                         <input
                           type="tel"
@@ -676,12 +678,37 @@ export default function Settings() {
                         </p>
                       </div>
                       
+                      {/* Calling Number */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Calling Number
+                        </label>
+                        <input
+                          type="tel"
+                          value={smsSettings.callingNumber}
+                          onChange={(e) => setSmsSettings({ ...smsSettings, callingNumber: e.target.value })}
+                          placeholder="+14721564923"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <p className="text-sm text-gray-500 mt-1">
+                          Enter the phone number that will be used for making calls through the dialer (e.g., +14721564923). This must be a number you own in JustCall.
+                        </p>
+                      </div>
+                      
                       <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                        <div className="text-sm text-gray-600">
-                          <p className="font-medium">Current sender number:</p>
-                          <p className="text-gray-500">
-                            {smsSettings.senderNumber || 'Not configured'}
-                          </p>
+                        <div className="text-sm text-gray-600 space-y-2">
+                          <div>
+                            <p className="font-medium">Current SMS sender:</p>
+                            <p className="text-gray-500">
+                              {smsSettings.senderNumber || 'Not configured'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="font-medium">Current calling number:</p>
+                            <p className="text-gray-500">
+                              {smsSettings.callingNumber || 'Not configured'}
+                            </p>
+                          </div>
                         </div>
                         <button
                           onClick={handleSaveSmsSettings}

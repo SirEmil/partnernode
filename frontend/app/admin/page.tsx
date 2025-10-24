@@ -15,7 +15,8 @@ import {
   Clock,
   ChevronDown,
   ChevronUp,
-  Trash2
+  Trash2,
+  Settings
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -315,10 +316,20 @@ export default function AdminSmsRecords() {
                   <MessageSquare className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-white">SMS Records</h1>
-                  <p className="text-blue-100 text-sm">Manage and monitor SMS communications</p>
+                  <h1 className="text-2xl font-bold text-white">Admin Panel</h1>
+                  <p className="text-blue-100 text-sm">Manage SMS records and system settings</p>
                 </div>
               </div>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => router.push('/admin/control-panel')}
+                className="flex items-center space-x-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                <Settings className="w-4 h-4" />
+                <span>Control Panel</span>
+              </button>
             </div>
             
             <div className="text-right">

@@ -134,10 +134,48 @@ export interface UpdateTermsData {
 // SMS Settings interfaces
 export interface SmsSettings {
   senderNumber: string;
+  callingNumber: string;
 }
 
 export interface UpdateSmsSettingsData {
   senderNumber: string;
+  callingNumber: string;
+}
+
+// Pipeline interfaces
+export interface Pipeline {
+  id: string;
+  name: string;
+  description: string;
+  assignedRepId: string;
+  assignedRepEmail: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  items: PipelineItem[];
+  stages: PipelineStage[];
+}
+
+export interface PipelineItem {
+  id: string;
+  name: string;
+  description: string;
+  order: number;
+  type: string;
+  config: any;
+  isRequired: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PipelineStage {
+  id: string;
+  name: string;
+  order: number;
+  isRequired: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Auth API functions
@@ -247,6 +285,39 @@ export const smsSettingsAPI = {
       console.error('SMS Settings API Error:', error.response?.data || error.message);
       throw error;
     }
+  },
+};
+
+// Pipelines API functions
+export const pipelinesAPI = {
+  getAll: async (): Promise<{ success: boolean; pipelines: Pipeline[] }> => {
+    try {
+      const response = await api.get('/api/pipelines');
+      return response.data;
+    } catch (error: any) {
+      console.error('Pipelines API Error:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  getById: async (id: string): Promise<{ success: boolean; pipeline: Pipeline }> => {
+    const response = await api.get(`/api/pipelines/${id}`);
+    return response.data;
+  },
+
+  create: async (data: { name: string; description: string; assignedRepId: string }): Promise<{ success: boolean; message: string; pipelineId: string }> => {
+    const response = await api.post('/api/pipelines', data);
+    return response.data;
+  },
+
+  update: async (id: string, data: { name?: string; description?: string; assignedRepId?: string; isActive?: boolean }): Promise<{ success: boolean; message: string }> => {
+    const response = await api.put(`/api/pipelines/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: string): Promise<{ success: boolean; message: string }> => {
+    const response = await api.delete(`/api/pipelines/${id}`);
+    return response.data;
   },
 };
 

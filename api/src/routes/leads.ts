@@ -443,4 +443,91 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Test route to verify PUT is working
+router.put('/test', authenticateToken, async (req, res) => {
+  res.json({ success: true, message: 'PUT route is working' });
+});
+
+// Update a lead
+router.put('/:leadId', authenticateToken, async (req, res) => {
+  try {
+    if (!PIPEDRIVE_API_TOKEN) {
+      return res.status(400).json({
+        success: false,
+        message: 'Pipedrive API token not configured'
+      });
+    }
+
+    const { leadId } = req.params;
+    const updateData = req.body;
+
+    console.log('🔄 Updating lead:', leadId, 'with data:', updateData);
+
+    // Prepare the update payload for Pipedrive
+    const pipedriveUpdateData: any = {};
+
+    // Map our form fields to Pipedrive fields
+    if (updateData.title) pipedriveUpdateData.title = updateData.title;
+    if (updateData.companyName) pipedriveUpdateData.org_name = updateData.companyName;
+    if (updateData.value !== undefined) pipedriveUpdateData.value = updateData.value;
+    if (updateData.status) pipedriveUpdateData.status = updateData.status;
+    if (updateData.source) pipedriveUpdateData.source = updateData.source;
+    if (updateData.active_in_pipeline) pipedriveUpdateData.pipeline_id = updateData.active_in_pipeline;
+
+    // Update person details if provided
+    if (updateData.personName || updateData.email || updateData.phone) {
+      // First get the current deal to find the person_id
+      const dealResponse = await axios.get(`${PIPEDRIVE_API_URL}/deals/${leadId}`, {
+        params: { api_token: PIPEDRIVE_API_TOKEN },
+        timeout: 10000
+      });
+
+      const deal = dealResponse.data.data;
+      if (deal.person_id) {
+        const personUpdateData: any = {};
+        if (updateData.personName) personUpdateData.name = updateData.personName;
+        if (updateData.email) personUpdateData.email = [{ value: updateData.email, primary: true }];
+        if (updateData.phone) personUpdateData.phone = [{ value: updateData.phone, primary: true }];
+
+        // Update the person
+        await axios.put(`${PIPEDRIVE_API_URL}/persons/${deal.person_id}`, personUpdateData, {
+          params: { api_token: PIPEDRIVE_API_TOKEN },
+          timeout: 10000
+        });
+      }
+    }
+
+    // Update the deal
+    const response = await axios.put(`${PIPEDRIVE_API_URL}/deals/${leadId}`, pipedriveUpdateData, {
+      params: { api_token: PIPEDRIVE_API_TOKEN },
+      timeout: 10000
+    });
+
+    console.log('✅ Lead updated successfully:', response.data);
+
+    res.json({
+      success: true,
+      data: response.data.data,
+      message: 'Lead updated successfully'
+    });
+
+  } catch (error: any) {
+    console.error('Lead update error:', error);
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message: 'Pipedrive API error',
+        error: error.response.data?.error || 'Failed to update lead'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update lead',
+      error: error.message
+    });
+  }
+});
+
 export default router;

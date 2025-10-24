@@ -13,12 +13,17 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/auth';
 import leadsRoutes from './routes/leads';
+import leadsCollectionRoutes from './routes/leads-collection';
+import customersRoutes from './routes/customers';
+import leadFieldsRoutes from './routes/lead-fields';
 import smsRoutes from './routes/sms';
 import productsRoutes from './routes/products';
 import termsRoutes from './routes/terms';
 import smsSettingsRoutes from './routes/sms-settings';
 import webhookRoutes from './routes/webhook';
 import usersRoutes from './routes/users';
+import pipelinesRoutes from './routes/pipelines';
+import callsRoutes from './routes/calls';
 
 // SSE (Server-Sent Events) for real-time updates
 interface SSEClient {
@@ -153,12 +158,17 @@ app.locals.sendSSEUpdate = sendSSEUpdate;
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/leads', leadsRoutes);
+app.use('/api/leads-collection', leadsCollectionRoutes);
+app.use('/api/customers', customersRoutes);
+app.use('/api/lead-fields', leadFieldsRoutes);
 app.use('/api/sms', smsRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/terms', termsRoutes);
 app.use('/api/sms-settings', smsSettingsRoutes);
 app.use('/api/webhook', webhookRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/pipelines', pipelinesRoutes);
+app.use('/api/calls', callsRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

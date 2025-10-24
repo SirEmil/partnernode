@@ -21,6 +21,9 @@ declare global {
 const smsSettingsSchema = Joi.object({
   senderNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required().messages({
     'string.pattern.base': 'Phone number must be in international format (e.g., +1234567890)'
+  }),
+  callingNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required().messages({
+    'string.pattern.base': 'Phone number must be in international format (e.g., +1234567890)'
   })
 });
 
@@ -42,7 +45,10 @@ router.get('/', authenticateToken, async (req, res) => {
     if (!doc.exists) {
       return res.json({
         success: true,
-        data: { senderNumber: '' }
+        data: { 
+          senderNumber: '',
+          callingNumber: ''
+        }
       });
     }
     
@@ -50,7 +56,8 @@ router.get('/', authenticateToken, async (req, res) => {
     res.json({
       success: true,
       data: {
-        senderNumber: data?.senderNumber || ''
+        senderNumber: data?.senderNumber || '',
+        callingNumber: data?.callingNumber || ''
       }
     });
   } catch (error: any) {
@@ -85,11 +92,12 @@ router.put('/', authenticateToken, async (req, res) => {
       });
     }
     
-    const { senderNumber } = value;
+    const { senderNumber, callingNumber } = value;
     
     // Save to Firestore as global settings (not user-specific)
     await db.collection('smsSettings').doc('global').set({
       senderNumber,
+      callingNumber,
       updatedBy: userId,
       updatedAt: new Date()
     }, { merge: true });

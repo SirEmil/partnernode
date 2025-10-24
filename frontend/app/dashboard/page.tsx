@@ -15,11 +15,41 @@ import {
   Settings,
   Edit,
   Users,
-  Trophy
+  Trophy,
+  Workflow,
+  Target,
+  X,
+  HelpCircle,
+  Mail,
+  ChevronDown,
+  StickyNote,
+  FileText
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { productsAPI, termsAPI, Product, Terms } from '../../lib/api';
+import DraggableDialer from '../../components/DraggableDialer';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragOverlay,
+  useDroppable,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface Lead {
   id: number;
@@ -30,7 +60,85 @@ interface Lead {
   status: string;
   add_time: string;
   phone?: string; // Phone number from person details
+  email?: string; // Email address
+  notes?: string; // Notes about the lead
+  companyName?: string; // Company name
+  name?: string; // Contact person name
+  org_number?: string; // Organization number (read-only)
+  postal_code?: string; // Postal code
+  postal_area?: string; // Postal area
+  address?: string; // Address
+  city?: string; // City
+  active_in_pipeline?: string; // Active pipeline ID
+  admin_email?: string; // Admin email
+  createdAt?: Date; // Created timestamp
+  current_stage?: string; // Current pipeline stage
+  importedAt?: Date; // Imported timestamp
+  importedBy?: string; // Imported by user ID
+  lastActivityAt?: Date; // Last activity timestamp
+  prefix?: string; // Prefix
+  processing_timestamp?: string; // Processing timestamp
+  rating?: string; // Rating
+  source?: string; // Source
+  updatedAt?: Date; // Updated timestamp
 }
+
+interface PipelineStage {
+  id: string;
+  name: string;
+  order: number;
+  isRequired: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface Pipeline {
+  id: string;
+  name: string;
+  description: string;
+  assignedRepId: string;
+  assignedRepEmail: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string;
+  stages: PipelineStage[];
+}
+
+// Get responsive grid class based on stage count
+const getGridClass = (stageCount: number): string => {
+  if (stageCount <= 2) {
+    return "grid grid-cols-1 md:grid-cols-2 gap-4";
+  } else if (stageCount <= 3) {
+    return "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
+  } else if (stageCount <= 4) {
+    return "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4";
+  } else if (stageCount <= 5) {
+    return "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4";
+  } else if (stageCount <= 6) {
+    return "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-3";
+  } else {
+    // For more than 6 stages, use a more compact layout
+    return "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-2";
+  }
+};
+
+// Droppable Stage Component
+const DroppableStage = ({ stage, stageCount, children }: { stage: any; stageCount: number; children: React.ReactNode }) => {
+  const { setNodeRef } = useDroppable({
+    id: stage.id,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      key={stage.id}
+      className="bg-gray-50 rounded-lg border border-gray-200 h-[500px] flex flex-col"
+    >
+      {children}
+    </div>
+  );
+};
 
 export default function Dashboard() {
   const { user, logout, loading } = useAuth();
@@ -43,6 +151,150 @@ export default function Dashboard() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [smsPhone, setSmsPhone] = useState('');
+  const [assignedPipeline, setAssignedPipeline] = useState<Pipeline | null>(null);
+  const [pipelineLoading, setPipelineLoading] = useState(false);
+  const [pipelineLeads, setPipelineLeads] = useState<{[stageId: string]: Lead[]}>({});
+  const [activeLead, setActiveLead] = useState<Lead | null>(null);
+  const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [showLeadEditModal, setShowLeadEditModal] = useState(false);
+  const [leadEditForm, setLeadEditForm] = useState({
+    companyName: '',
+    name: '',
+    org_number: '',
+    phone: '',
+    email: '',
+    notes: '',
+    postal_code: '',
+    postal_area: '',
+    address: '',
+    city: ''
+  });
+  const [callLogs, setCallLogs] = useState<any[]>([]);
+  const [callLogsLoading, setCallLogsLoading] = useState(false);
+  const [showSpeechBubble, setShowSpeechBubble] = useState(false);
+  
+  // Help widget state
+  const [showHelpWidget, setShowHelpWidget] = useState(false);
+  const [helpMessage, setHelpMessage] = useState('');
+  const [helpEmail, setHelpEmail] = useState('');
+  
+  // Dialer state
+  const [showDialer, setShowDialer] = useState(false);
+  const [dialerPhone, setDialerPhone] = useState('');
+  const [isCalling, setIsCalling] = useState(false);
+  const [callingNumber, setCallingNumber] = useState('');
+  const [callInProgress, setCallInProgress] = useState(false);
+  const [currentCallInfo, setCurrentCallInfo] = useState<{
+    to: string;
+    from: string;
+    duration: number;
+    startTime: Date;
+    callId?: string;
+  } | null>(null);
+  
+  // JustCall embedded dialer state
+  const [showJustCallDialer, setShowJustCallDialer] = useState(false);
+  const [dialerPhoneNumber, setDialerPhoneNumber] = useState<string>('');
+  const [dialerMetadata, setDialerMetadata] = useState<any>(null);
+  const [isInCall, setIsInCall] = useState(false);
+  
+  // Admin dropdown state
+  const [showAdminDropdown, setShowAdminDropdown] = useState(false);
+  
+  // Close admin dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showAdminDropdown && !target.closest('.admin-dropdown')) {
+        setShowAdminDropdown(false);
+      }
+    };
+
+    if (showAdminDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showAdminDropdown]);
+
+  // Monitor call state when dialer is open
+  useEffect(() => {
+    if (!showJustCallDialer) return;
+
+    const interval = setInterval(() => {
+      const inCall = checkIfInCall();
+      setIsInCall(inCall);
+    }, 2000); // Check every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [showJustCallDialer]);
+
+  // Fetch calling number from settings
+  const fetchCallingNumber = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return null;
+      
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      const response = await fetch(`${API_BASE_URL}/api/sms-settings`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data.callingNumber) {
+          setCallingNumber(data.data.callingNumber);
+          return data.data.callingNumber;
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching calling number:', error);
+      return null;
+    }
+  };
+
+  // Fetch calling number on component mount
+  useEffect(() => {
+    if (user) {
+      fetchCallingNumber();
+    }
+  }, [user]);
+
+  // Call timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (callInProgress && currentCallInfo) {
+      interval = setInterval(() => {
+        setCurrentCallInfo(prev => {
+          if (!prev) return null;
+          const now = new Date();
+          const duration = Math.floor((now.getTime() - prev.startTime.getTime()) / 1000);
+          return { ...prev, duration };
+        });
+      }, 1000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [callInProgress, currentCallInfo]);
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
   const [manualTemplateData, setManualTemplateData] = useState({
     price: '',
     customer_name: '',
@@ -326,11 +578,599 @@ export default function Dashboard() {
     if (user) {
       fetchProducts();
       fetchTerms();
+      fetchAssignedPipeline();
+      fetchCallLogs();
     } else if (!loading) {
       // Redirect to login if not authenticated
       router.push('/');
     }
   }, [user, loading, router]);
+
+  const fetchAssignedPipeline = async () => {
+    if (!user) return;
+    
+    setPipelineLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      
+      const response = await fetch(`${API_BASE_URL}/api/pipelines`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const pipelines = result.pipelines || [];
+        
+        // Find pipeline assigned to current user
+        const userPipeline = pipelines.find((pipeline: Pipeline) => 
+          pipeline.assignedRepId === user.uid && pipeline.isActive
+        );
+        
+        console.log('All pipelines:', pipelines);
+        console.log('User ID:', user.uid);
+        console.log('Found user pipeline:', userPipeline);
+        
+        setAssignedPipeline(userPipeline || null);
+        
+        // Initialize pipeline leads if pipeline exists
+        if (userPipeline) {
+          await initializePipelineLeads(userPipeline);
+        }
+      } else {
+        console.error('Failed to fetch pipelines');
+      }
+    } catch (error) {
+      console.error('Error fetching assigned pipeline:', error);
+    } finally {
+      setPipelineLoading(false);
+    }
+  };
+
+  const initializePipelineLeads = async (pipeline: Pipeline) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      
+      // Fetch pipeline items
+      console.log('Fetching pipeline items for pipeline:', pipeline.id);
+      const response = await fetch(`${API_BASE_URL}/api/pipelines/${pipeline.id}/items`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      console.log('Pipeline items response status:', response.status);
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Pipeline items result:', result);
+        console.log('Pipeline items count:', result.count);
+        console.log('Pipeline items array:', result.items);
+        const itemsByStage = result.itemsByStage || {};
+        console.log('Items by stage:', itemsByStage);
+        console.log('Pipeline stages:', pipeline.stages);
+        
+        // Check for items without stageId
+        const itemsWithoutStage = result.items.filter((item: any) => !item.stageId);
+        if (itemsWithoutStage.length > 0) {
+          console.warn('⚠️ Found items without stageId:', itemsWithoutStage);
+        }
+        
+        // Convert pipeline items to Lead format for the dashboard
+        const leadsByStage: {[stageId: string]: Lead[]} = {};
+        
+    pipeline.stages.forEach(stage => {
+          leadsByStage[stage.id] = [];
+        });
+
+        // Fetch full lead data for each pipeline item
+        const allLeadIds = result.items.map((item: any) => item.leadId);
+        console.log('🔍 Fetching full lead data for lead IDs:', allLeadIds);
+        
+        if (allLeadIds.length > 0) {
+          const leadsResponse = await fetch(`${API_BASE_URL}/api/leads-collection/bulk-fetch`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ leadIds: allLeadIds })
+          });
+
+          if (leadsResponse.ok) {
+            const leadsData = await leadsResponse.json();
+            console.log('📊 Full leads data:', leadsData);
+            
+            // Create a map of leadId to lead data
+            const leadsMap = new Map();
+            leadsData.leads.forEach((lead: any) => {
+              leadsMap.set(lead.id, lead);
+            });
+
+            Object.entries(itemsByStage).forEach(([stageId, items]) => {
+              console.log(`🔄 Processing stage ${stageId} with ${(items as any[]).length} items:`, items);
+              leadsByStage[stageId] = (items as any[]).map((item: any) => {
+                const fullLeadData = leadsMap.get(item.leadId);
+                console.log(`📝 Converting item ${item.id} with full lead data:`, fullLeadData);
+                
+                return {
+                  id: item.leadId,
+                  title: fullLeadData?.title || 'Unnamed Lead',
+                  owner_name: fullLeadData?.owner_name || "Current User",
+                  person_name: fullLeadData?.person_name || 'Unknown',
+                  org_name: fullLeadData?.org_name || "Unknown Company",
+                  status: fullLeadData?.status || "open",
+                  add_time: fullLeadData?.add_time || item.addedAt || new Date().toISOString(),
+                  phone: fullLeadData?.phone || '',
+                  email: fullLeadData?.email || '',
+                  notes: fullLeadData?.notes || '',
+                  companyName: fullLeadData?.companyName || fullLeadData?.org_name || 'Unknown Company',
+                  name: fullLeadData?.name || fullLeadData?.person_name || 'Unknown',
+                  org_number: fullLeadData?.org_number || '',
+                  postal_code: fullLeadData?.postal_code || '',
+                  postal_area: fullLeadData?.postal_area || '',
+                  address: fullLeadData?.address || '',
+                  city: fullLeadData?.city || '',
+                  active_in_pipeline: fullLeadData?.active_in_pipeline || '',
+                  admin_email: fullLeadData?.admin_email || '',
+                  createdAt: fullLeadData?.createdAt || undefined,
+                  current_stage: fullLeadData?.current_stage || '',
+                  importedAt: fullLeadData?.importedAt || undefined,
+                  importedBy: fullLeadData?.importedBy || '',
+                  lastActivityAt: fullLeadData?.lastActivityAt || undefined,
+                  prefix: fullLeadData?.prefix || '',
+                  processing_timestamp: fullLeadData?.processing_timestamp || '',
+                  rating: fullLeadData?.rating || '',
+                  source: fullLeadData?.source || '',
+                  updatedAt: fullLeadData?.updatedAt || undefined,
+                  pipeline_item_id: item.id // Store the pipeline item ID for moving
+                };
+              });
+            });
+          } else {
+            console.error('Failed to fetch full lead data');
+            // Fallback to using pipeline item data only
+            Object.entries(itemsByStage).forEach(([stageId, items]) => {
+              leadsByStage[stageId] = (items as any[]).map((item: any) => ({
+                id: item.leadId,
+                title: 'Unnamed Lead',
+                owner_name: "Current User",
+                person_name: 'Unknown',
+                org_name: "Unknown Company",
+                status: "open",
+                add_time: item.addedAt || new Date().toISOString(),
+                phone: '',
+                email: '',
+                notes: '',
+                companyName: 'Unknown Company',
+                name: 'Unknown',
+                org_number: '',
+                postal_code: '',
+                postal_area: '',
+                address: '',
+                city: '',
+                active_in_pipeline: '',
+                admin_email: '',
+                createdAt: undefined,
+                current_stage: '',
+                importedAt: undefined,
+                importedBy: '',
+                lastActivityAt: undefined,
+                prefix: '',
+                processing_timestamp: '',
+                rating: '',
+                source: '',
+                updatedAt: undefined,
+                pipeline_item_id: item.id
+              }));
+            });
+          }
+        } else {
+          // No items to process
+          Object.entries(itemsByStage).forEach(([stageId, items]) => {
+            leadsByStage[stageId] = [];
+          });
+        }
+
+        setPipelineLeads(leadsByStage);
+        console.log('Pipeline leads loaded:', leadsByStage);
+        console.log('Total leads in all stages:', Object.values(leadsByStage).flat().length);
+      } else {
+        console.error('Failed to fetch pipeline items');
+        // Fallback to empty stages
+        const emptyLeads: {[stageId: string]: Lead[]} = {};
+        pipeline.stages.forEach(stage => {
+          emptyLeads[stage.id] = [];
+        });
+        setPipelineLeads(emptyLeads);
+      }
+    } catch (error) {
+      console.error('Error fetching pipeline items:', error);
+      // Fallback to empty stages
+      const emptyLeads: {[stageId: string]: Lead[]} = {};
+      pipeline.stages.forEach(stage => {
+        emptyLeads[stage.id] = [];
+      });
+      setPipelineLeads(emptyLeads);
+    }
+  };
+
+  const handleLeadDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || !assignedPipeline) return;
+
+    const leadId = active.id.toString();
+    let targetStageId = over.id.toString();
+
+    // If we're dropping on a lead instead of a stage, find the stage that contains that lead
+    if (targetStageId !== leadId) {
+      // Check if the over.id is a lead ID (not a stage ID)
+      let isLeadId = false;
+      Object.entries(pipelineLeads).forEach(([stageId, leads]) => {
+        const lead = leads.find(l => l.id.toString() === targetStageId);
+        if (lead) {
+          isLeadId = true;
+          targetStageId = stageId; // Use the stage ID instead
+        }
+      });
+
+      // If over.id is not a lead ID, it should be a stage ID
+      if (!isLeadId) {
+        // Verify it's a valid stage ID
+        const validStage = assignedPipeline.stages.find(s => s.id === targetStageId);
+        if (!validStage) {
+          console.error('Invalid target stage ID:', targetStageId);
+          return;
+        }
+      }
+    }
+
+    // Find which stage the lead is currently in
+    let currentStageId = '';
+    let leadToMove: Lead | null = null;
+
+    Object.entries(pipelineLeads).forEach(([stageId, leads]) => {
+      const lead = leads.find(l => l.id.toString() === leadId);
+      if (lead) {
+        currentStageId = stageId;
+        leadToMove = lead;
+      }
+    });
+
+    // If dropped in the same stage, do nothing
+    if (!leadToMove || currentStageId === targetStageId) {
+      return;
+    }
+
+    // Get the pipeline item ID from the lead
+    const pipelineItemId = (leadToMove as any).pipeline_item_id;
+    console.log('🔍 Pipeline item ID:', pipelineItemId);
+    console.log('🔍 Lead to move:', leadToMove);
+    console.log('🔍 Assigned pipeline ID:', assignedPipeline.id);
+    console.log('🔍 Target stage ID:', targetStageId);
+    
+    if (!pipelineItemId) {
+      console.error('No pipeline item ID found for lead');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        toast.error('Authentication token missing');
+        return;
+      }
+
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      const moveUrl = `${API_BASE_URL}/api/pipelines/${assignedPipeline.id}/items/${pipelineItemId}/move`;
+      console.log('🔍 Move URL:', moveUrl);
+      
+      // Call API to move pipeline item
+      const response = await fetch(moveUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          stageId: targetStageId
+        })
+      });
+
+      if (response.ok) {
+        // Update local cache instead of refetching
+        setPipelineLeads(prevLeads => {
+          const newLeads = { ...prevLeads };
+          
+          // Remove lead from current stage
+          if (newLeads[currentStageId]) {
+            newLeads[currentStageId] = newLeads[currentStageId].filter(lead => lead.id.toString() !== leadId);
+          }
+          
+          // Add lead to target stage
+      if (leadToMove) {
+            if (newLeads[targetStageId]) {
+              newLeads[targetStageId] = [...newLeads[targetStageId], leadToMove];
+            } else {
+              newLeads[targetStageId] = [leadToMove];
+            }
+      }
+      
+      return newLeads;
+    });
+
+        const targetStageName = assignedPipeline.stages.find(s => s.id === targetStageId)?.name || 'new stage';
+        toast.success(`Lead moved to ${targetStageName}`);
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to move pipeline item:', errorData);
+        toast.error(`Failed to move lead: ${errorData.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error moving pipeline item:', error);
+      toast.error('Failed to move lead. Please try again.');
+    }
+  };
+
+  const handleDragStart = (event: any) => {
+    const { active } = event;
+    const leadId = active.id.toString();
+    
+    // Find the lead being dragged
+    let leadToDrag: Lead | null = null;
+    Object.entries(pipelineLeads).forEach(([stageId, leads]) => {
+      const lead = leads.find(l => l.id.toString() === leadId);
+      if (lead) {
+        leadToDrag = lead;
+      }
+    });
+    
+    setActiveLead(leadToDrag);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveLead(null);
+    handleLeadDragEnd(event);
+  };
+
+  const handleLeadDoubleClick = (lead: Lead) => {
+    setEditingLead(lead);
+    setLeadEditForm({
+      companyName: lead.companyName || lead.org_name || '',
+      name: lead.name || lead.person_name || '',
+      org_number: lead.org_number || '',
+      phone: lead.phone || '',
+      email: lead.email || '',
+      notes: lead.notes || '',
+      postal_code: lead.postal_code || '',
+      postal_area: lead.postal_area || '',
+      address: lead.address || '',
+      city: lead.city || ''
+    });
+    setShowLeadEditModal(true);
+  };
+
+  const handleLeadEditSubmit = async () => {
+    if (!editingLead) return;
+
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        toast.error('Authentication token missing');
+        return;
+      }
+
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      
+      // Update the lead in the database
+      const response = await fetch(`${API_BASE_URL}/api/leads-collection/${editingLead.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+                  body: JSON.stringify({
+                    companyName: leadEditForm.companyName,
+                    name: leadEditForm.name,
+                    phone: leadEditForm.phone,
+                    email: leadEditForm.email,
+                    notes: leadEditForm.notes,
+                    postal_code: leadEditForm.postal_code,
+                    postal_area: leadEditForm.postal_area,
+                    address: leadEditForm.address,
+                    city: leadEditForm.city
+                  })
+      });
+
+      if (response.ok) {
+        // Update local cache instead of refetching
+        setPipelineLeads(prevLeads => {
+          const newLeads = { ...prevLeads };
+          
+          // Update the lead in all stages where it appears
+          Object.keys(newLeads).forEach(stageId => {
+            newLeads[stageId] = newLeads[stageId].map(lead => {
+              if (lead.id.toString() === editingLead.id.toString()) {
+                          return {
+                            ...lead,
+                            companyName: leadEditForm.companyName,
+                            name: leadEditForm.name,
+                            phone: leadEditForm.phone,
+                            email: leadEditForm.email,
+                            notes: leadEditForm.notes,
+                            postal_code: leadEditForm.postal_code,
+                            postal_area: leadEditForm.postal_area,
+                            address: leadEditForm.address,
+                            city: leadEditForm.city
+                          };
+              }
+              return lead;
+            });
+          });
+          
+          return newLeads;
+        });
+
+        toast.success('Lead updated successfully');
+        setShowLeadEditModal(false);
+        setEditingLead(null);
+      } else {
+        const errorData = await response.json();
+        toast.error(`Failed to update lead: ${errorData.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error updating lead:', error);
+      toast.error('Failed to update lead. Please try again.');
+    }
+  };
+
+  const handleLeadEditCancel = () => {
+    setShowLeadEditModal(false);
+    setEditingLead(null);
+    setLeadEditForm({
+      companyName: '',
+      name: '',
+      org_number: '',
+      phone: '',
+      email: '',
+      notes: '',
+      postal_code: '',
+      postal_area: '',
+      address: '',
+      city: ''
+    });
+  };
+
+  const handleContractButton = () => {
+    if (!editingLead?.org_number) {
+      toast.error('No organization number available for this lead');
+      return;
+    }
+
+    // Fill the organization number and phone number in the SMS template data
+    setManualTemplateData(prev => ({
+      ...prev,
+      orgnr: editingLead.org_number || '',
+      phone: editingLead.phone || ''
+    }));
+
+    // Set SMS phone number if available
+    if (editingLead.phone) {
+      setSmsPhone(editingLead.phone);
+    }
+
+    // Close the modal
+    setShowLeadEditModal(false);
+    setEditingLead(null);
+
+    // Scroll to the SMS sender section first
+    setTimeout(() => {
+      const smsSection = document.querySelector('[data-sms-section]');
+      if (smsSection) {
+        smsSection.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+        
+        // Show speech bubble after scrolling
+        setTimeout(() => {
+          setShowSpeechBubble(true);
+          
+          // Auto-hide speech bubble after 4 seconds
+          setTimeout(() => {
+            setShowSpeechBubble(false);
+          }, 4000);
+        }, 500);
+      }
+    }, 100);
+  };
+
+  // Sortable Lead Component
+  const SortableLead = ({ lead }: { lead: Lead }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: lead.id.toString() });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition: isDragging ? 'none' : transition, // Disable transition when dragging
+      opacity: isDragging ? 0.3 : 1, // Make original semi-transparent when dragging
+    };
+
+    const formattedPhone = lead.phone ? formatPhoneNumber(lead.phone) : '';
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        onDoubleClick={() => handleLeadDoubleClick(lead)}
+        className="p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <h4 className="font-medium text-gray-900 text-sm truncate">
+              {lead.companyName || lead.title || 'Unnamed Company'}
+            </h4>
+            <p className="text-xs text-gray-600 mt-1 truncate">
+              {lead.name || lead.person_name || 'Unknown Contact'}
+            </p>
+            {formattedPhone && (
+              <p className="text-xs text-blue-600 mt-1 truncate">
+                📞 {formattedPhone}
+              </p>
+            )}
+            {lead.email && (
+              <p className="text-xs text-gray-500 mt-1 truncate">
+                ✉️ {lead.email}
+              </p>
+            )}
+          </div>
+          <div className="flex-shrink-0 ml-2 flex flex-col items-end space-y-1">
+            <span className={`inline-block w-2 h-2 rounded-full ${
+              lead.status === 'open' ? 'bg-green-500' : 'bg-gray-400'
+            }`}></span>
+            {lead.notes && lead.notes.trim() && (
+              <div title="Has notes">
+                <StickyNote className="w-3 h-3 text-yellow-500" />
+              </div>
+            )}
+                      {formattedPhone && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!isInCall) {
+                              openJustCallDialerWithLead(lead);
+                            }
+                          }}
+                          className={`w-6 h-6 text-white rounded-full flex items-center justify-center transition-all duration-200 ${
+                            isInCall 
+                              ? 'bg-gray-400 cursor-not-allowed blur-sm' 
+                              : 'bg-green-500 hover:bg-green-600'
+                          }`}
+                          title={isInCall ? 'Cannot call while in active call' : `Call ${formattedPhone}`}
+                          disabled={isInCall}
+                        >
+                          <Phone className="w-3 h-3" />
+                        </button>
+                      )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const fetchLeads = async (orgNumber?: string) => {
     try {
@@ -421,8 +1261,39 @@ export default function Dashboard() {
     try {
       const response = await productsAPI.getAll();
       setProducts(response.data);
+      // Set the first product as default if available
+      if (response.data.length > 0 && !selectedProduct) {
+        setSelectedProduct(response.data[0]);
+      }
     } catch (error) {
       toast.error('Error fetching products');
+    }
+  };
+
+  // Fetch call logs
+  const fetchCallLogs = async () => {
+    try {
+      setCallLogsLoading(true);
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      const response = await fetch(`${API_BASE_URL}/api/calls/call-logs?limit=20`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCallLogs(data.data || []);
+      } else {
+        console.error('Failed to fetch call logs');
+      }
+    } catch (error) {
+      console.error('Error fetching call logs:', error);
+    } finally {
+      setCallLogsLoading(false);
     }
   };
 
@@ -624,6 +1495,11 @@ export default function Dashboard() {
       setSmsPhone(formattedPhone);
     }
     
+    // Auto-populate dialer phone field
+    if (formattedPhone) {
+      setDialerPhone(formattedPhone);
+    }
+    
     // Debug logging
     console.log('Selected lead:', lead);
     console.log('Lead org_name:', lead.org_name);
@@ -632,6 +1508,321 @@ export default function Dashboard() {
     console.log('Lead phone (original):', lead.phone);
     console.log('Lead phone (formatted):', formattedPhone);
     console.log('Setting company_name to:', lead.org_name || lead.title);
+  };
+
+  // Dialer functions
+  const openDialer = (phoneNumber?: string) => {
+    if (phoneNumber) {
+      setDialerPhone(phoneNumber);
+    }
+    setShowDialer(true);
+  };
+
+  // Check if there's an active call in the JustCall dialer
+  const checkIfInCall = () => {
+    try {
+      const iframe = document.querySelector('iframe[title="JustCall Dialer"]') as HTMLIFrameElement;
+      if (iframe && iframe.contentDocument) {
+        // Look for call-related elements in the iframe
+        const callElements = iframe.contentDocument.querySelectorAll('[class*="call"], [class*="active"], [class*="ringing"], [class*="connected"]');
+        const hasCallElements = callElements.length > 0;
+        
+        // Also check for common call state indicators
+        const callButtons = iframe.contentDocument.querySelectorAll('button[class*="hang"], button[class*="end"], button[class*="call"]');
+        const hasCallButtons = Array.from(callButtons).some(btn => 
+          btn.textContent?.toLowerCase().includes('hang') || 
+          btn.textContent?.toLowerCase().includes('end') ||
+          btn.textContent?.toLowerCase().includes('call')
+        );
+        
+        return hasCallElements || hasCallButtons;
+      }
+    } catch (error) {
+      // Cross-origin restrictions prevent access, assume not in call
+      console.log('Cannot access iframe content due to cross-origin restrictions');
+    }
+    return false;
+  };
+
+  const openJustCallDialer = (phoneNumber?: string) => {
+    try {
+      // Format phone number for JustCall (ensure it has + prefix)
+      let formattedNumber = phoneNumber || '';
+      if (formattedNumber && !formattedNumber.startsWith('+')) {
+        // Assume Norwegian number if no country code
+        formattedNumber = '+47' + formattedNumber.replace(/\D/g, '');
+      }
+      
+      // Set state for embedded dialer
+      setDialerPhoneNumber(formattedNumber);
+      setDialerMetadata(null);
+      setShowJustCallDialer(true);
+      
+      toast.success(formattedNumber ? `Opening dialer for ${formattedNumber}` : 'Opening JustCall dialer');
+      
+    } catch (error: any) {
+      console.error('Failed to open JustCall dialer:', error);
+      toast.error('Failed to open dialer. Please try again.');
+    }
+  };
+
+  const openJustCallDialerWithLead = (lead: any) => {
+    console.log('openJustCallDialerWithLead called with lead:', lead);
+    try {
+      // Format phone number for JustCall (ensure it has + prefix)
+      let formattedNumber = lead.phone || '';
+      console.log('Original phone number:', lead.phone);
+      console.log('Formatted phone number:', formattedNumber);
+      
+      if (formattedNumber && !formattedNumber.startsWith('+')) {
+        // Assume Norwegian number if no country code
+        formattedNumber = '+47' + formattedNumber.replace(/\D/g, '');
+      }
+      
+      if (!formattedNumber) {
+        toast.error('No phone number available for this lead');
+        return;
+      }
+      
+      // Create custom metadata with lead information
+      const metadata = {
+        lead_id: lead.id,
+        lead_name: lead.name || lead.title,
+        lead_company: lead.org_name || lead.companyName,
+        lead_email: lead.email,
+        lead_status: lead.status,
+        pipeline_id: lead.active_in_pipeline || '',
+        source: 'CRM Integration'
+      };
+      
+      // If dialer is already open, check if there's an active call
+      if (showJustCallDialer) {
+        const currentlyInCall = checkIfInCall() || isInCall; // Check both detection and tracked state
+        if (currentlyInCall) {
+          toast.error('Cannot change number while in an active call. Please end the current call first.');
+          return; // CRITICAL: This prevents any state updates
+        }
+        
+        // Only update state if not in call (this prevents iframe reload)
+        setDialerPhoneNumber(formattedNumber);
+        setDialerMetadata(metadata);
+        toast.success(`Updated dialer for ${lead.name || lead.title} (${formattedNumber})`);
+      } else {
+        // Set state for embedded dialer with metadata
+        setDialerPhoneNumber(formattedNumber);
+        setDialerMetadata(metadata);
+        setShowJustCallDialer(true);
+        toast.success(`Opening dialer for ${lead.name || lead.title} (${formattedNumber})`);
+        
+        // Note: Call log will be created automatically via JustCall webhook when dial button is pressed
+      }
+      
+    } catch (error: any) {
+      console.error('Failed to open JustCall dialer:', error);
+      toast.error('Failed to open dialer. Please try again.');
+    }
+  };
+
+  // Log call initiation to Firestore (DEPRECATED - now handled by JustCall webhooks)
+  /*
+  const logCallInitiation = async (phoneNumber: string, lead: any, metadata: any) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.log('No auth token found');
+        return;
+      }
+
+      // Get calling number from settings
+      const callingNumber = await fetchCallingNumber();
+      console.log('Calling number:', callingNumber);
+
+      const callLogData = {
+        fromNumber: callingNumber || '+4721564923',  // Fallback to default
+        toNumber: phoneNumber,               // Lead's phone number
+        leadId: lead.id,
+        leadName: lead.name || lead.title,
+        leadCompany: lead.org_name || lead.companyName,
+        callDirection: 'outbound',
+        callStatus: 'initiated',
+        duration: 0,
+        pickup: false,                       // Will be updated when call is answered
+        cost: 0,                            // Will be updated with actual cost
+        metadata
+      };
+
+      console.log('Sending call log data:', callLogData);
+
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      const response = await fetch(`${API_BASE_URL}/api/calls/log-call`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(callLogData)
+      });
+
+      console.log('Call log response status:', response.status);
+      console.log('Call log response headers:', response.headers);
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Call logged successfully:', result.data.callLogId);
+        return result.data.callLogId; // Return the call log ID for future updates
+      } else {
+        const errorText = await response.text();
+        console.error('Call log failed:', response.status, errorText);
+        toast.error(`Failed to log call: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Failed to log call:', error);
+    }
+  };
+  */
+
+  // Update call log with completion details
+  const updateCallLog = async (callLogId: string, updates: any) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+
+      const response = await fetch(`/api/calls/log-call/${callLogId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updates)
+      });
+
+      if (response.ok) {
+        console.log('Call log updated successfully');
+      }
+    } catch (error) {
+      console.error('Failed to update call log:', error);
+    }
+  };
+
+  const closeDialer = () => {
+    setShowDialer(false);
+    setDialerPhone('');
+    setIsCalling(false);
+  };
+
+  const startCall = (to: string, from: string, callId?: string) => {
+    setCallInProgress(true);
+    setCurrentCallInfo({
+      to,
+      from,
+      duration: 0,
+      startTime: new Date(),
+      callId
+    });
+    setShowDialer(false);
+  };
+
+  const endCall = async () => {
+    try {
+      // If we have a call ID, try to end the call through the API
+      if (currentCallInfo?.callId) {
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+          try {
+            await fetch(`${API_BASE_URL}/api/calls/end/${currentCallInfo.callId}`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            });
+            console.log('Call ended via API:', currentCallInfo.callId);
+          } catch (apiError) {
+            console.error('Failed to end call via API:', apiError);
+            // Continue with local end call even if API fails
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error ending call:', error);
+    } finally {
+      // Always end the call locally
+      setCallInProgress(false);
+      setCurrentCallInfo(null);
+      toast.success('Call ended');
+    }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const initiateCall = async () => {
+    if (!dialerPhone.trim()) {
+      toast.error('Please enter a phone number');
+      return;
+    }
+
+    if (!callingNumber) {
+      toast.error('Calling number not configured. Please set it in Settings > Phone Configuration.');
+      return;
+    }
+
+    setIsCalling(true);
+    
+    try {
+      // Format phone number for JustCall API
+      const formattedPhone = formatPhoneForAPI(dialerPhone);
+      
+      console.log('Initiating call from:', callingNumber, 'to:', formattedPhone);
+      
+      // Call the actual JustCall API
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+      
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      const response = await fetch(`${API_BASE_URL}/api/calls/make`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          to_number: formattedPhone,
+          from_number: callingNumber,
+          call_type: 'outbound'
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || data.error || 'Failed to initiate call');
+      }
+      
+      if (data.success) {
+        // Start the call session with call ID
+        startCall(formattedPhone, callingNumber, data.data?.callId);
+        toast.success(`Call initiated to ${formattedPhone}`);
+        
+        // Store call ID for potential future use
+        if (data.data?.callId) {
+          console.log('Call ID:', data.data.callId);
+        }
+      } else {
+        throw new Error(data.message || 'Call initiation failed');
+      }
+      
+    } catch (error: any) {
+      console.error('Call initiation failed:', error);
+      toast.error(`Failed to initiate call: ${error.message}`);
+    } finally {
+      setIsCalling(false);
+    }
   };
 
   if (loading) {
@@ -659,88 +1850,188 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-40 bg-white shadow-sm border-b">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <MessageSquare className="w-8 h-8 text-blue-600" />
-                <h1 className="text-xl font-bold text-gray-900">Contract Sender</h1>
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <MessageSquare className="w-8 h-8 text-blue-600" />
+                  <h1 className="text-xl font-bold text-gray-900">Contract Sender</h1>
+                </div>
+                <div className="h-8 w-px bg-gray-300"></div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-indigo-600 rounded flex items-center justify-center">
+                    <span className="text-white text-sm font-black">N</span>
+                  </div>
+                  <h2 className="text-lg font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                    Norges Mediehus
+                  </h2>
+                </div>
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
-              {/* SMS Records - Available to all users */}
-              <button
-                onClick={() => router.push('/sms-list')}
-                className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <MessageSquare className="w-4 h-4" />
-                <span>My SMS Records</span>
-              </button>
-              
-              {/* Leaderboard - Available to everyone */}
-              <button
-                onClick={() => router.push('/leaderboard')}
-                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white rounded-lg hover:from-yellow-500 hover:to-yellow-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-              >
-                <Trophy className="w-4 h-4" />
-                <span className="font-medium">🏆 Leaderboard</span>
-              </button>
-              
-              {/* Admin-only features */}
-              {user?.authLevel === 1 && (
-                <>
-                  <button
-                    onClick={() => router.push('/settings')}
-                    className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-                  >
-                    <Settings className="w-4 h-4" />
-                    <span>Settings</span>
-                  </button>
-                  <button
-                    onClick={() => router.push('/admin')}
-                    className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-                  >
-                    <Edit className="w-4 h-4" />
-                    <span>Admin</span>
-                  </button>
-                  <button
-                    onClick={() => router.push('/users')}
-                    className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-                  >
-                    <Users className="w-4 h-4" />
-                    <span>Users</span>
-                  </button>
-                </>
-              )}
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <User className="w-4 h-4" />
-                <span>{user?.email}</span>
+            <div className="flex items-center space-x-3">
+              {/* Primary Actions - Compact buttons */}
+              <div className="flex items-center space-x-2">
+                {/* SMS Records - Compact */}
+                <button
+                  onClick={() => router.push('/sms-list')}
+                  className="flex items-center space-x-1.5 px-2.5 py-1.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-all duration-200"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>SMS</span>
+                </button>
+                
+                {/* Leaderboard - Compact */}
+                <button
+                  onClick={() => router.push('/leaderboard')}
+                  className="flex items-center space-x-1.5 px-2.5 py-1.5 text-xs bg-gradient-to-r from-yellow-400 to-yellow-600 text-white rounded-md hover:from-yellow-500 hover:to-yellow-700 transition-all duration-200 shadow-sm hover:shadow-md"
+                >
+                  <Trophy className="w-3.5 h-3.5" />
+                  <span>🏆</span>
+                </button>
               </div>
+              
+              {/* Dialer - JustCall Integration */}
+              <div className="relative">
+                <button
+                  onClick={() => openJustCallDialer()}
+                  className="group relative flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 shadow-md hover:shadow-lg"
+                >
+                  <div className="relative">
+                    <Phone className="w-4 h-4 transition-transform duration-300 group-hover:rotate-12" />
+                    <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
+                  </div>
+                  <span className="font-medium text-sm">Call</span>
+                </button>
+                
+              </div>
+              
+              {/* Admin Dropdown - Compact */}
+              {user?.authLevel === 1 && (
+                <div className="relative admin-dropdown">
+                  <button
+                    onClick={() => setShowAdminDropdown(!showAdminDropdown)}
+                    className="flex items-center space-x-1.5 px-2.5 py-1.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-all duration-200"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    <span>Admin</span>
+                    <ChevronDown className={`w-2.5 h-2.5 transition-transform duration-200 ${showAdminDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {/* Dropdown Menu */}
+                  {showAdminDropdown && (
+                    <div className="absolute right-0 mt-2 w-44 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                      <button
+                        onClick={() => {
+                          router.push('/settings');
+                          setShowAdminDropdown(false);
+                        }}
+                        className="flex items-center space-x-2 w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        <Settings className="w-3.5 h-3.5" />
+                        <span>Settings</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          router.push('/admin');
+                          setShowAdminDropdown(false);
+                        }}
+                        className="flex items-center space-x-2 w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        <span>Admin Panel</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          router.push('/users');
+                          setShowAdminDropdown(false);
+                        }}
+                        className="flex items-center space-x-2 w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                        <span>Users</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* User Info - Compact */}
+              <div className="flex items-center space-x-2 text-xs text-gray-600">
+                <User className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{user?.email}</span>
+                <span className="sm:hidden">{user?.email?.split('@')[0]}</span>
+              </div>
+              
+              {/* Logout - Compact */}
               <button
                 onClick={handleLogout}
-                className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                className="flex items-center space-x-1.5 px-2.5 py-1.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-all duration-200"
               >
-                <LogOut className="w-4 h-4" />
-                <span>Logout</span>
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Logout</span>
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Call Status Bar */}
+      {callInProgress && currentCallInfo && (
+        <div className="sticky top-16 z-30 bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-lg">
+          <div className="w-full px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                    <Phone className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium">Call in progress</span>
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    </div>
+                    <div className="text-xs text-blue-100">
+                      {currentCallInfo.to} • From: {currentCallInfo.from}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-4">
+                <div className="text-right">
+                  <div className="text-lg font-mono font-semibold">
+                    {formatDuration(currentCallInfo.duration)}
+                  </div>
+                  <div className="text-xs text-blue-100">Duration</div>
+                </div>
+                
+                <button
+                  onClick={endCall}
+                  className="flex items-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                >
+                  <Phone className="w-4 h-4 rotate-180" />
+                  <span className="text-sm font-medium">End Call</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className={`w-full px-4 sm:px-6 lg:px-8 py-8 ${callInProgress ? 'pt-20' : ''}`}>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* SMS Composer */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="bg-white rounded-lg shadow-sm border p-6 h-[calc(100vh-200px)] flex flex-col">
               <div className="flex items-center space-x-2 mb-6">
                 <Send className="w-5 h-5 text-blue-600" />
                 <h2 className="text-lg font-semibold text-gray-900">Send Contract</h2>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-4 flex-grow">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Select Product
@@ -827,7 +2118,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div>
+                <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Phone Number
                   </label>
@@ -843,10 +2134,24 @@ export default function Dashboard() {
                         onChange={(e) => handleNumberInput(e.target.value, setSmsPhone)}
                         placeholder="41234567"
                         className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        data-phone-field
                       />
                     </div>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">Enter Norwegian phone number (8 digits)</p>
+                  
+                  {/* Speech Bubble Reminder */}
+                  {showSpeechBubble && (
+                    <div className="absolute top-full left-0 z-50 animate-bounce mt-2">
+                      <div className="relative bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg max-w-xs">
+                        <div className="text-sm font-medium">
+                          Husk å endre nummer hvis dette er feil!
+                        </div>
+                        {/* Speech bubble tail pointing up */}
+                        <div className="absolute -top-2 left-4 w-0 h-0 border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-blue-500"></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
 
@@ -857,7 +2162,7 @@ export default function Dashboard() {
 
           {/* Leads List */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-sm border">
+            <div className="bg-white rounded-lg shadow-sm border h-[calc(100vh-150px)] flex flex-col">
               <div className="p-6 border-b">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
@@ -882,7 +2187,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="p-6">
+              <div className="p-6 flex-grow overflow-y-auto">
                 {dataLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
@@ -1005,7 +2310,7 @@ export default function Dashboard() {
 
           {/* Manual Template Fields Panel */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="bg-white rounded-lg shadow-sm border p-6 h-[calc(100vh-150px)] flex flex-col" data-sms-section>
               <div className="flex items-center space-x-2 mb-6">
                 <Edit className="w-5 h-5 text-blue-600" />
                 <h2 className="text-lg font-semibold text-gray-900">Customize</h2>
@@ -1278,16 +2583,521 @@ export default function Dashboard() {
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Edit className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                  <p className="text-sm">Select a product to customize</p>
-                  <p className="text-xs mt-1">Choose a product to see customizable fields</p>
+                <div className="flex-grow flex items-center justify-center">
+                  <div className="text-center py-12 px-6">
+                    <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                      <Edit className="w-10 h-10 text-blue-600" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-3">Select a Product to Customize</h3>
+                    <p className="text-gray-600 text-lg leading-relaxed max-w-sm mx-auto">
+                      Choose a product to see customizable fields and personalize your SMS templates
+                    </p>
+                    <div className="mt-6 flex items-center justify-center space-x-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
+                      <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Cool Separator */}
+        <div className="mt-16 mb-8">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200"></div>
+            </div>
+            <div className="relative flex justify-center">
+              <div className="bg-gray-50 px-6 py-3 rounded-full border border-gray-200 shadow-sm">
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium text-gray-700">Pipeline Management</span>
+                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Pipeline Section */}
+        <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl border border-purple-200 shadow-lg w-full">
+          <div className="p-8">
+            <div className="text-center mb-8">
+              <div className="flex items-center justify-center space-x-3 mb-4">
+                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                  <Workflow className="w-6 h-6 text-purple-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900">My Pipeline</h2>
+                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                  <Target className="w-6 h-6 text-purple-600" />
+                </div>
+              </div>
+              <p className="text-gray-600 max-w-2xl mx-auto">
+                Manage your leads through the sales pipeline stages. Drag and drop leads between stages to track their progress.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-purple-100 p-6 w-full">
+              {pipelineLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+                  <span className="ml-2 text-gray-500">Loading pipeline...</span>
+                </div>
+              ) : assignedPipeline ? (
+                <div className="space-y-6">
+                  {/* Pipeline Header */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                        {assignedPipeline.name}
+                      </h3>
+                      <p className="text-gray-600 mb-4">
+                        {assignedPipeline.description}
+                      </p>
+                      <div className="flex items-center space-x-4 text-sm text-gray-500">
+                        <span className="flex items-center space-x-1">
+                          <Target className="w-4 h-4" />
+                          <span>{assignedPipeline.stages.length} stages</span>
+                        </span>
+                        <span className="flex items-center space-x-1">
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          <span>Active</span>
+                        </span>
+                      </div>
+                    </div>
+                    <div className="ml-4">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                        Assigned to You
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Pipeline Stages */}
+                  {assignedPipeline.stages.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-md font-medium text-gray-900">Pipeline Board</h4>
+                      </div>
+                      
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <div className={getGridClass(assignedPipeline.stages.length)}>
+                          {assignedPipeline.stages
+                            .sort((a, b) => a.order - b.order)
+                            .map((stage) => (
+                              <DroppableStage key={stage.id} stage={stage} stageCount={assignedPipeline.stages.length}>
+                                {/* Stage Header */}
+                                <div className="p-4 border-b border-gray-200 bg-white rounded-t-lg flex-shrink-0">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-2">
+                                      <div className="flex items-center justify-center w-6 h-6 bg-purple-100 text-purple-600 rounded-full text-xs font-medium">
+                                        {stage.order}
+                                      </div>
+                                      <h5 className="font-medium text-gray-900 text-sm">
+                                        {stage.name}
+                                      </h5>
+                                    </div>
+                                    <div className="flex items-center space-x-1">
+                                      <span className="text-xs text-gray-500">
+                                        {pipelineLeads[stage.id]?.length || 0}
+                                      </span>
+                                      {stage.isRequired && (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                          Required
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Stage Content */}
+                                <div className="flex flex-col flex-1 min-h-0">
+                                  <div className="flex-grow overflow-y-auto p-3 min-h-0">
+                                    <SortableContext
+                                      items={(pipelineLeads[stage.id] || []).map(lead => lead.id.toString())}
+                                      strategy={horizontalListSortingStrategy}
+                                    >
+                                      <div className="space-y-2">
+                                        {(pipelineLeads[stage.id] || []).map((lead) => (
+                                          <SortableLead key={lead.id} lead={lead} />
+                                        ))}
+                                      </div>
+                                    </SortableContext>
+                                  </div>
+                                </div>
+                              </DroppableStage>
+                            ))}
+                        </div>
+                        
+                        <DragOverlay>
+                          {activeLead ? (
+                            <div className="p-3 bg-white border border-gray-200 rounded-lg shadow-lg opacity-90 rotate-3 transform">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-medium text-gray-900 text-sm truncate">
+                                    {activeLead.companyName || activeLead.title || 'Unnamed Company'}
+                                  </h4>
+                                  <p className="text-xs text-gray-600 mt-1 truncate">
+                                    {activeLead.name || activeLead.person_name || 'Unknown Contact'}
+                                  </p>
+                                  {activeLead.phone && (
+                                    <p className="text-xs text-blue-600 mt-1 truncate">
+                                      📞 {formatPhoneNumber(activeLead.phone)}
+                                  </p>
+                                  )}
+                                </div>
+                                <div className="flex-shrink-0 ml-2">
+                                  <span className={`inline-block w-2 h-2 rounded-full ${
+                                    activeLead.status === 'open' ? 'bg-green-500' : 'bg-gray-400'
+                                  }`}></span>
+                                  {activeLead.notes && activeLead.notes.trim() && (
+                                    <div title="Has notes">
+                                      <StickyNote className="w-3 h-3 text-yellow-500 mt-1" />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+                        </DragOverlay>
+                      </DndContext>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <Workflow className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-sm">No stages defined for this pipeline</p>
+                      <p className="text-xs mt-1">Contact your administrator to add stages</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Workflow className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Pipeline Assigned</h3>
+                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    You don't have a pipeline assigned to you yet. Contact your administrator to get assigned to a pipeline.
+                  </p>
+                  <div className="flex items-center justify-center space-x-4">
+                    <button
+                      onClick={() => router.push('/admin/control-panel')}
+                      className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      <Workflow className="w-4 h-4" />
+                      <span>View All Pipelines</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
           </div>
         </div>
       </div>
+      
+      {/* Help Widget */}
+      <div className="fixed bottom-6 right-6 z-50">
+        {/* Help Button - Always visible */}
+        <button
+          onClick={() => setShowHelpWidget(!showHelpWidget)}
+          className={`w-14 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110 flex items-center justify-center group ${
+            showHelpWidget ? 'scale-95' : ''
+          }`}
+        >
+          <HelpCircle className="w-7 h-7 group-hover:rotate-12 transition-transform duration-200" />
+        </button>
+        
+        {/* Help Widget Modal */}
+        {showHelpWidget && (
+          <div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-200 w-96 max-h-[80vh] overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                    <HelpCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Sales Rep Help</h3>
+                    <p className="text-blue-100 text-sm">Get support for any questions</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowHelpWidget(false)}
+                  className="text-white/80 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6">
+              {/* Under Development Badge */}
+              <div className="mb-6 p-4 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-lg border border-orange-200">
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                  <span className="text-orange-700 font-medium text-sm">Under Development</span>
+                </div>
+                <p className="text-orange-600 text-sm">
+                  This help system is currently being built. Soon you'll be able to send inquiries and get quick feedback!
+                </p>
+              </div>
+              
+              {/* Coming Soon Features */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-gray-900 mb-3">Coming Soon:</h4>
+                
+                <div className="space-y-3">
+                  <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Mail className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <h5 className="font-medium text-gray-900 text-sm">Quick Inquiries</h5>
+                      <p className="text-gray-600 text-xs">Send questions directly to support team</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <MessageSquare className="w-4 h-4 text-green-600" />
+                    </div>
+                    <div>
+                      <h5 className="font-medium text-gray-900 text-sm">Live Chat</h5>
+                      <p className="text-gray-600 text-xs">Get instant responses from support</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Users className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <div>
+                      <h5 className="font-medium text-gray-900 text-sm">Team Support</h5>
+                      <p className="text-gray-600 text-xs">Connect with your sales team</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Contact Info */}
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h5 className="font-medium text-blue-900 mb-2">Need Help Now?</h5>
+                <p className="text-blue-700 text-sm mb-2">
+                  Contact your administrator or reach out to the support team directly.
+                </p>
+                <div className="flex items-center space-x-2 text-blue-600 text-sm">
+                  <Mail className="w-4 h-4" />
+                  <span>support@yourcompany.com</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Lead Edit Modal */}
+      {showLeadEditModal && editingLead && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Edit Lead: {editingLead.title}
+              </h2>
+              <button
+                onClick={handleLeadEditCancel}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {/* Form */}
+            <div className="p-6 space-y-6">
+              {/* Company Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Company Name
+                  </label>
+                  <input
+                    type="text"
+                    value={leadEditForm.companyName}
+                    onChange={(e) => setLeadEditForm(prev => ({ ...prev, companyName: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter company name"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    value={leadEditForm.name}
+                    onChange={(e) => setLeadEditForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter contact person name"
+                  />
+                </div>
+              </div>
+              
+              {/* Organization Number (Read-only) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-2">
+                  Organization Number
+                </label>
+                <input
+                  type="text"
+                  value={leadEditForm.org_number}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed"
+                  placeholder="Organization number"
+                />
+              </div>
+              
+              {/* Contact Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={leadEditForm.phone}
+                    onChange={(e) => setLeadEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter phone number"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={leadEditForm.email}
+                    onChange={(e) => setLeadEditForm(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter email address"
+                  />
+                </div>
+              </div>
+              
+              {/* Address Information */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Address
+                </label>
+                <input
+                  type="text"
+                  value={leadEditForm.address}
+                  onChange={(e) => setLeadEditForm(prev => ({ ...prev, address: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter full address"
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1 text-xs">
+                      Postal Code
+                    </label>
+                    <input
+                      type="text"
+                      value={leadEditForm.postal_code}
+                      onChange={(e) => setLeadEditForm(prev => ({ ...prev, postal_code: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      placeholder="Enter postal code"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1 text-xs">
+                      Postal Area
+                    </label>
+                    <input
+                      type="text"
+                      value={leadEditForm.postal_area}
+                      onChange={(e) => setLeadEditForm(prev => ({ ...prev, postal_area: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      placeholder="Enter postal area"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Notes
+                </label>
+                <textarea
+                  value={leadEditForm.notes}
+                  onChange={(e) => setLeadEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Add notes about this lead..."
+                />
+              </div>
+              
+            </div>
+            
+            {/* Footer */}
+            <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+              <div>
+                {editingLead?.org_number && (
+                  <button
+                    onClick={handleContractButton}
+                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center space-x-2"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>Contract</span>
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={handleLeadEditCancel}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleLeadEditSubmit}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Draggable JustCall Dialer */}
+            <DraggableDialer
+              isOpen={showJustCallDialer}
+              phoneNumber={dialerPhoneNumber}
+              metadata={dialerMetadata}
+              isInCall={isInCall}
+              onCallStateChange={setIsInCall}
+              onClose={() => {
+                setShowJustCallDialer(false);
+                setDialerPhoneNumber('');
+                setDialerMetadata(null);
+                setIsInCall(false);
+              }}
+            />
     </div>
   );
 }
