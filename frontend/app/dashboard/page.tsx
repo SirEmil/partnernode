@@ -988,9 +988,11 @@ export default function Dashboard() {
       }
 
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      const url = `${API_BASE_URL}/api/calls/justcall-logs?phone_number=${encodeURIComponent(phoneNumber)}&limit=50`;
+      
       
       // Call our backend endpoint that will fetch from JustCall API
-      const response = await fetch(`${API_BASE_URL}/api/calls/justcall-logs?phone_number=${encodeURIComponent(phoneNumber)}&limit=50`, {
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

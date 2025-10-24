@@ -1067,6 +1067,7 @@ router.get('/justcall-logs', authenticateToken, async (req, res) => {
     const justcallApiKey = process.env.JUSTCALL_API_KEY;
     const justcallApiSecret = process.env.JUSTCALL_API_SECRET;
     
+    
     if (!justcallApiKey || !justcallApiSecret) {
       return res.status(500).json({
         success: false,
@@ -1078,61 +1079,115 @@ router.get('/justcall-logs', authenticateToken, async (req, res) => {
     const auth = Buffer.from(`${justcallApiKey}:${justcallApiSecret}`).toString('base64');
     
     // Fetch call logs from JustCall API
-    const justcallResponse = await fetch(
-      `https://api.justcall.io/v2.1/calls?phone_number=${encodeURIComponent(phone_number as string)}&page=0&per_page=${limit}`,
-      {
+    const justcallUrl = `https://api.justcall.io/v2.1/calls?phone_number=${encodeURIComponent(phone_number as string)}&page=0&per_page=${limit}`;
+    
+    let justcallResponse;
+    try {
+      justcallResponse = await fetch(justcallUrl, {
         method: 'GET',
         headers: {
           'Authorization': `Basic ${auth}`,
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         }
-      }
-    );
+      });
+    } catch (fetchError) {
+      console.error('❌ Network error calling JustCall API:', fetchError);
+      return res.status(500).json({
+        success: false,
+        message: `Network error calling JustCall API: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`
+      });
+    }
 
     if (!justcallResponse.ok) {
-      console.error('JustCall API error:', justcallResponse.status, justcallResponse.statusText);
+      const errorText = await justcallResponse.text();
+      console.error('❌ JustCall API error:', {
+        status: justcallResponse.status,
+        statusText: justcallResponse.statusText,
+        errorBody: errorText
+      });
       return res.status(justcallResponse.status).json({
         success: false,
-        message: 'Failed to fetch call logs from JustCall API'
+        message: `Failed to fetch call logs from JustCall API: ${justcallResponse.statusText}`,
+        error: errorText
       });
     }
 
     const justcallData = await justcallResponse.json() as any;
     
-    // Transform JustCall data to match our expected format
-    const transformedLogs = justcallData.data?.map((call: any) => ({
-      id: call.id,
-      justcallCallId: call.call_sid,
-      fromNumber: call.from_number,
-      toNumber: call.to_number,
-      callDirection: call.direction?.toLowerCase() || 'unknown',
-      status: call.status || 'unknown',
-      callType: call.call_type || (call.status === 'completed' ? 'answered' : 'unanswered'),
-      startTime: call.start_time ? new Date(call.start_time) : null,
-      endTime: call.end_time ? new Date(call.end_time) : null,
-      duration: call.duration || 0,
-      userId: call.agent_id?.toString() || 'unknown',
-      agentId: call.agent_id,
-      agentName: call.agent_name || 'Unknown Agent',
-      agentEmail: call.agent_email || '',
-      costIncurred: parseFloat(call.cost) || 0,
-      recordingUrl: call.recording_url || null,
-      callQuality: call.quality || '',
-      disposition: call.disposition || '',
-      notes: call.notes || '',
-      createdAt: call.created_at ? new Date(call.created_at) : new Date(),
-      updatedAt: call.updated_at ? new Date(call.updated_at) : new Date(),
-      metadata: {
-        source: 'justcall_api',
-        justcallData: call
+    
+    // Filter calls to only include those involving the requested phone number
+    const filteredCalls = justcallData.data?.filter((call: any) => {
+      const contactNumber = call.contact_number;
+      const justcallNumber = call.justcall_number;
+      const requestedNumber = phone_number as string;
+      
+      // Normalize phone numbers for comparison (remove spaces, dashes, + signs)
+      const normalizeNumber = (num: string) => {
+        return num?.replace(/[\s\-\+\(\)]/g, '') || '';
+      };
+      
+      const normalizedContact = normalizeNumber(contactNumber);
+      const normalizedJustcall = normalizeNumber(justcallNumber);
+      const normalizedRequested = normalizeNumber(requestedNumber);
+      
+      // Also try with Norwegian country code (47) if the requested number doesn't have one
+      let normalizedRequestedWithCountry = normalizedRequested;
+      if (!normalizedRequested.startsWith('47') && normalizedRequested.length === 8) {
+        normalizedRequestedWithCountry = '47' + normalizedRequested;
       }
-    })) || [];
+      
+      // Check if the requested number appears in either field (with or without country code)
+      const isRelevant = normalizedContact === normalizedRequested || 
+                        normalizedJustcall === normalizedRequested ||
+                        normalizedContact === normalizedRequestedWithCountry || 
+                        normalizedJustcall === normalizedRequestedWithCountry;
+      
+      
+      return isRelevant;
+    }) || [];
+    
+    
+    // Transform JustCall data to match our expected format
+    const transformedLogs = filteredCalls.map((call: any, index: number) => {
+      
+      const transformed = {
+        id: call.id,
+        justcallCallId: call.call_sid,
+        fromNumber: call.justcall_number,
+        toNumber: call.contact_number,
+        callDirection: call.call_info?.direction?.toLowerCase() || 'unknown',
+        status: call.call_info?.status || 'unknown',
+        callType: call.call_info?.type === 'answered' ? 'answered' : 'unanswered',
+        startTime: call.call_date && call.call_time ? new Date(`${call.call_date}T${call.call_time}`) : null,
+        endTime: null, // Not provided in this API
+        duration: call.call_duration?.total_duration || 0,
+        userId: call.agent_id?.toString() || 'unknown',
+        agentId: call.agent_id,
+        agentName: call.agent_name || 'Unknown Agent',
+        agentEmail: call.agent_email || '',
+        costIncurred: call.cost_incurred || 0,
+        recordingUrl: call.call_info?.recording || null,
+        callQuality: call.call_info?.rating || '',
+        disposition: call.call_info?.disposition || '',
+        notes: call.call_info?.notes || '',
+        createdAt: call.call_date && call.call_time ? new Date(`${call.call_date}T${call.call_time}`) : new Date(),
+        updatedAt: call.call_date && call.call_time ? new Date(`${call.call_date}T${call.call_time}`) : new Date(),
+        metadata: {
+          source: 'justcall_api',
+          justcallData: call
+        }
+      };
+      
+      
+      return transformed;
+    }) || [];
+
 
     res.json({
       success: true,
       callLogs: transformedLogs,
-      total: justcallData.total || transformedLogs.length
+      total: transformedLogs.length
     });
 
   } catch (error) {
