@@ -610,8 +610,24 @@ export default function Dashboard() {
           pipeline.assignedRepId === user.uid && pipeline.isActive
         );
         
+        // Also check for inactive pipelines for debugging
+        const inactiveUserPipeline = pipelines.find((pipeline: Pipeline) => 
+          pipeline.assignedRepId === user.uid && !pipeline.isActive
+        );
+        
+        if (inactiveUserPipeline) {
+          console.warn('⚠️ User has an inactive pipeline:', inactiveUserPipeline);
+        }
+        
         console.log('All pipelines:', pipelines);
         console.log('User ID:', user.uid);
+        console.log('Pipeline details:', pipelines.map((p: Pipeline) => ({
+          id: p.id,
+          name: p.name,
+          assignedRepId: p.assignedRepId,
+          isActive: p.isActive,
+          assignedRepEmail: p.assignedRepEmail
+        })));
         console.log('Found user pipeline:', userPipeline);
         
         setAssignedPipeline(userPipeline || null);
@@ -2798,13 +2814,23 @@ export default function Dashboard() {
                     You don't have a pipeline assigned to you yet. Contact your administrator to get assigned to a pipeline.
                   </p>
                   <div className="flex items-center justify-center space-x-4">
-                    <button
-                      onClick={() => router.push('/admin/control-panel')}
-                      className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                    >
-                      <Workflow className="w-4 h-4" />
-                      <span>View All Pipelines</span>
-                    </button>
+                    {user?.authLevel === 1 ? (
+                      <button
+                        onClick={() => router.push('/admin/control-panel')}
+                        className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                      >
+                        <Workflow className="w-4 h-4" />
+                        <span>View All Pipelines</span>
+                      </button>
+                    ) : (
+                      <div className="text-center">
+                        <p className="text-sm text-gray-500 mb-2">Contact your administrator to:</p>
+                        <ul className="text-sm text-gray-600 text-left">
+                          <li>• Get assigned to a pipeline</li>
+                          <li>• Access pipeline management</li>
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
