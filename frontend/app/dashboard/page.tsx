@@ -23,7 +23,8 @@ import {
   Mail,
   ChevronDown,
   StickyNote,
-  FileText
+  FileText,
+  BarChart3
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -1952,6 +1953,16 @@ export default function Dashboard() {
                       >
                         <Users className="w-3.5 h-3.5" />
                         <span>Users</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          router.push('/admin/kpis');
+                          setShowAdminDropdown(false);
+                        }}
+                        className="flex items-center space-x-2 w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        <BarChart3 className="w-3.5 h-3.5" />
+                        <span>KPIs</span>
                       </button>
                     </div>
                   )}

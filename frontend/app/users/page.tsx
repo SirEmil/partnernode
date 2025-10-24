@@ -18,7 +18,8 @@ import {
   UserCheck,
   UserX,
   CheckCircle,
-  XCircle
+  XCircle,
+  Phone
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -353,7 +354,7 @@ export default function UsersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -503,22 +504,23 @@ export default function UsersPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">User</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Role</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">JustCall</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Last Login</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Created</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">User ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredUsers.map((userRecord) => (
                     <tr key={userRecord.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10">
                             <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
@@ -539,27 +541,56 @@ export default function UsersPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         {getAuthLevelBadge(userRecord.authLevel)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         {getStatusBadge(userRecord.disabled)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        {userRecord.justcallAgentId ? (
+                          <div className="flex items-center space-x-3">
+                            <div className="relative">
+                              <div className="flex items-center justify-center w-10 h-10 bg-blue-500 rounded-lg shadow-lg">
+                                <Phone className="w-5 h-5 text-white" />
+                              </div>
+                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full animate-pulse border-2 border-white"></div>
+                            </div>
+                            <div className="flex flex-col">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm font-semibold text-blue-600">JustCall</span>
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                              </div>
+                              <span className="text-xs text-gray-600 font-mono">Agent #{userRecord.justcallAgentId}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-3">
+                            <div className="flex items-center justify-center w-10 h-10 bg-gray-200 rounded-lg">
+                              <Phone className="w-5 h-5 text-gray-500" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-gray-500">Not Connected</span>
+                              <span className="text-xs text-gray-400">No agent ID</span>
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <div className="flex items-center text-sm text-gray-900">
                           <Clock className="w-4 h-4 mr-2 text-gray-400" />
                           {formatDate(userRecord.lastLoginAt)}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{formatDate(userRecord.createdAt)}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-500 font-mono">
-                          {userRecord.uid.substring(0, 8)}...
+                          {userRecord.uid.substring(0, 12)}...
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => handleEditUser(userRecord)}

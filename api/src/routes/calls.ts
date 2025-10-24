@@ -506,6 +506,8 @@ router.get('/dialer-token', authenticateToken, async (req, res) => {
       error: error.message
     });
   }
+});
+
 // Log call to Firestore
 router.post('/log-call', authenticateToken, async (req, res) => {
   try {
@@ -652,7 +654,7 @@ router.get('/call-logs', authenticateToken, async (req, res) => {
     // Query call logs for the user
     const callLogsQuery = db.collection('callogs')
       .where('userId', '==', userId)
-      .orderBy('timestamp', 'desc')
+      .orderBy('createdAt', 'desc')
       .limit(parseInt(limit as string))
       .offset(parseInt(offset as string));
 
@@ -677,6 +679,54 @@ router.get('/call-logs', authenticateToken, async (req, res) => {
   }
 });
 
+// Get all call logs (admin only)
+router.get('/call-logs/all', authenticateToken, async (req, res) => {
+  try {
+    const adminUserId = req.user?.uid;
+    const { limit = 1000, offset = 0 } = req.query;
+
+    if (!adminUserId) {
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    // Check if user has admin privileges
+    const adminDoc = await db.collection('users').doc(adminUserId).get();
+    const adminData = adminDoc.data();
+
+    if (!adminData || adminData.authLevel !== 1) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin privileges required.'
+      });
+    }
+
+    // Query all call logs
+    const callLogsQuery = db.collection('callogs')
+      .orderBy('createdAt', 'desc')
+      .limit(parseInt(limit as string))
+      .offset(parseInt(offset as string));
+
+    const snapshot = await callLogsQuery.get();
+    const callLogs = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    console.log(`📊 Admin ${adminUserId} fetched ${callLogs.length} call logs`);
+
+    res.json({
+      success: true,
+      data: callLogs
+    });
+
+  } catch (error: any) {
+    console.error('Get all call logs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get call logs',
+      error: error.message
+    });
+  }
 });
 
 // JustCall webhook endpoint for call events
