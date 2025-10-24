@@ -170,8 +170,6 @@ export default function Dashboard() {
     address: '',
     city: ''
   });
-  const [callLogs, setCallLogs] = useState<any[]>([]);
-  const [callLogsLoading, setCallLogsLoading] = useState(false);
   const [showSpeechBubble, setShowSpeechBubble] = useState(false);
   
   // Help widget state
@@ -580,7 +578,6 @@ export default function Dashboard() {
       fetchProducts();
       fetchTerms();
       fetchAssignedPipeline();
-      fetchCallLogs();
     } else if (!loading) {
       // Redirect to login if not authenticated
       router.push('/');
@@ -1287,32 +1284,6 @@ export default function Dashboard() {
     }
   };
 
-  // Fetch call logs
-  const fetchCallLogs = async () => {
-    try {
-      setCallLogsLoading(true);
-      const token = localStorage.getItem('authToken');
-      if (!token) return;
-
-      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
-      const response = await fetch(`${API_BASE_URL}/api/calls/call-logs?limit=20`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCallLogs(data.data || []);
-      } else {
-        console.error('Failed to fetch call logs');
-      }
-    } catch (error) {
-      console.error('Error fetching call logs:', error);
-    } finally {
-      setCallLogsLoading(false);
-    }
-  };
 
   const fetchTerms = async () => {
     try {

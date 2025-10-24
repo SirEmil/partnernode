@@ -46,13 +46,6 @@ router.get('/', authenticateToken, async (req, res) => {
       });
     }
 
-    if (userData.authLevel !== 1) {
-      return res.status(403).json({
-        error: 'Access denied',
-        message: 'Only admin users can view pipelines'
-      });
-    }
-
     // Get all pipelines from Firestore
     const pipelinesSnapshot = await db.collection('pipelines').get();
     
