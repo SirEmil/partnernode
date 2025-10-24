@@ -29,6 +29,7 @@ interface CallLog {
   toNumber: string;
   callDirection: string;
   status: string;
+  callType: string; // 'answered' or 'unanswered'
   startTime: Date;
   endTime?: Date;
   duration: number;
@@ -60,13 +61,13 @@ interface UserStats {
   userName: string;
   userEmail: string;
   totalCalls: number;
-  completedCalls: number;
-  failedCalls: number;
+  answeredCalls: number;
+  unansweredCalls: number;
   totalDuration: number;
   averageDuration: number;
   totalCost: number;
   averageCost: number;
-  successRate: number;
+  answerRate: number;
   callsThisWeek: number;
   callsThisMonth: number;
   lastCallDate?: Date;
@@ -74,13 +75,13 @@ interface UserStats {
 
 interface OverallStats {
   totalCalls: number;
-  completedCalls: number;
-  failedCalls: number;
+  answeredCalls: number;
+  unansweredCalls: number;
   totalDuration: number;
   averageDuration: number;
   totalCost: number;
   averageCost: number;
-  successRate: number;
+  answerRate: number;
   callsToday: number;
   callsThisWeek: number;
   callsThisMonth: number;
@@ -256,11 +257,11 @@ export default function AdminKPIs() {
 
     // Calculate overall stats
     const totalCalls = filteredCalls.length;
-    const completedCalls = filteredCalls.filter(call => call.status === 'completed').length;
-    const failedCalls = filteredCalls.filter(call => call.status === 'failed').length;
+    const answeredCalls = filteredCalls.filter(call => call.callType === 'answered').length;
+    const unansweredCalls = filteredCalls.filter(call => call.callType === 'unanswered').length;
     const totalDuration = filteredCalls.reduce((sum, call) => sum + call.duration, 0);
     const totalCost = filteredCalls.reduce((sum, call) => sum + call.costIncurred, 0);
-    const successRate = totalCalls > 0 ? (completedCalls / totalCalls) * 100 : 0;
+    const answerRate = totalCalls > 0 ? (answeredCalls / totalCalls) * 100 : 0;
     console.log('📊 Calculating stats for:', filteredCalls.length, 'filtered calls');
     console.log('📊 Sample filtered call:', filteredCalls[0]);
     console.log('📊 Total cost from calls:', totalCost);
@@ -329,13 +330,13 @@ export default function AdminKPIs() {
 
     setOverallStats({
       totalCalls,
-      completedCalls,
-      failedCalls,
+      answeredCalls,
+      unansweredCalls,
       totalDuration,
       averageDuration: totalCalls > 0 ? totalDuration / totalCalls : 0,
       totalCost,
       averageCost: totalCalls > 0 ? totalCost / totalCalls : 0,
-      successRate,
+      answerRate,
       callsToday,
       callsThisWeek,
       callsThisMonth,
@@ -357,13 +358,13 @@ export default function AdminKPIs() {
         userName: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.displayName || 'Unknown',
         userEmail: user.email,
         totalCalls: 0,
-        completedCalls: 0,
-        failedCalls: 0,
+        answeredCalls: 0,
+        unansweredCalls: 0,
         totalDuration: 0,
         averageDuration: 0,
         totalCost: 0,
         averageCost: 0,
-        successRate: 0,
+        answerRate: 0,
         callsThisWeek: 0,
         callsThisMonth: 0,
         lastCallDate: undefined
@@ -388,8 +389,8 @@ export default function AdminKPIs() {
       if (userStat) {
         console.log('✅ Found user stat for:', call.userId);
         userStat.totalCalls++;
-        if (call.status === 'completed') userStat.completedCalls++;
-        if (call.status === 'failed') userStat.failedCalls++;
+        if (call.callType === 'answered') userStat.answeredCalls++;
+        if (call.callType === 'unanswered') userStat.unansweredCalls++;
         userStat.totalDuration += call.duration;
         userStat.totalCost += call.costIncurred;
 
@@ -413,7 +414,7 @@ export default function AdminKPIs() {
       if (userStat.totalCalls > 0) {
         userStat.averageDuration = userStat.totalDuration / userStat.totalCalls;
         userStat.averageCost = userStat.totalCost / userStat.totalCalls;
-        userStat.successRate = (userStat.completedCalls / userStat.totalCalls) * 100;
+        userStat.answerRate = (userStat.answeredCalls / userStat.totalCalls) * 100;
       }
     });
 
@@ -448,7 +449,7 @@ export default function AdminKPIs() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('no-NO', {
       style: 'currency',
-      currency: 'NOK',
+      currency: 'USD',
       minimumFractionDigits: 2
     }).format(amount);
   };
@@ -585,15 +586,15 @@ export default function AdminKPIs() {
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Success Rate</p>
-                  <p className="text-2xl font-bold text-gray-900">{overallStats.successRate.toFixed(1)}%</p>
+                  <p className="text-sm font-medium text-gray-600">Answer Rate</p>
+                  <p className="text-2xl font-bold text-gray-900">{overallStats.answerRate.toFixed(1)}%</p>
                 </div>
                 <Target className="w-8 h-8 text-green-600" />
               </div>
               <div className="mt-4 flex items-center text-sm">
-                <span className="text-green-600 font-medium">{overallStats.completedCalls} completed</span>
+                <span className="text-green-600 font-medium">{overallStats.answeredCalls} answered</span>
                 <span className="mx-2 text-gray-400">•</span>
-                <span className="text-red-600">{overallStats.failedCalls} failed</span>
+                <span className="text-red-600">{overallStats.unansweredCalls} unanswered</span>
               </div>
             </div>
 
@@ -652,7 +653,7 @@ export default function AdminKPIs() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calls</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Success Rate</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Answer Rate</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Duration</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Cost</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">This Week</th>
@@ -679,7 +680,7 @@ export default function AdminKPIs() {
                         <div className="text-sm text-gray-900">{userStat.totalCalls}</div>
                         {userStat.totalCalls > 0 ? (
                           <div className="text-xs text-gray-500">
-                            {userStat.completedCalls} completed, {userStat.failedCalls} failed
+                            {userStat.answeredCalls} answered, {userStat.unansweredCalls} unanswered
                           </div>
                         ) : (
                           <div className="text-xs text-gray-400">No calls made</div>
@@ -688,10 +689,10 @@ export default function AdminKPIs() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         {userStat.totalCalls > 0 ? (
                           <div className="flex items-center">
-                            <div className="text-sm font-medium text-gray-900">{userStat.successRate.toFixed(1)}%</div>
+                            <div className="text-sm font-medium text-gray-900">{userStat.answerRate.toFixed(1)}%</div>
                             <div className={`ml-2 w-2 h-2 rounded-full ${
-                              userStat.successRate >= 80 ? 'bg-green-500' :
-                              userStat.successRate >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                              userStat.answerRate >= 80 ? 'bg-green-500' :
+                              userStat.answerRate >= 60 ? 'bg-yellow-500' : 'bg-red-500'
                             }`}></div>
                           </div>
                         ) : (

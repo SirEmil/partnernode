@@ -16,7 +16,7 @@ interface DraggableDialerProps {
 
 export default function DraggableDialer({ isOpen, phoneNumber, metadata, onClose, isInCall, onCallStateChange }: DraggableDialerProps) {
   const [isMinimized, setIsMinimized] = useState(false);
-  const [size, setSize] = useState({ width: 400, height: 600 });
+  const [size, setSize] = useState({ width: 350, height: 500 });
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const nodeRef = useRef(null);
@@ -54,7 +54,7 @@ export default function DraggableDialer({ isOpen, phoneNumber, metadata, onClose
           isMinimized ? 'h-12' : ''
         }`}
         style={{
-          width: isMinimized ? 300 : size.width,
+          width: isMinimized ? 280 : size.width,
           height: isMinimized ? 48 : size.height,
           display: 'block',
           visibility: 'visible',
@@ -63,7 +63,7 @@ export default function DraggableDialer({ isOpen, phoneNumber, metadata, onClose
           position: 'fixed',
           top: '50px',
           left: '50px',
-          transform: 'scale(0.8)',
+          transform: 'scale(0.75)',
           transformOrigin: 'top left',
         }}
       >
@@ -90,19 +90,6 @@ export default function DraggableDialer({ isOpen, phoneNumber, metadata, onClose
           </div>
           
           <div className="flex items-center space-x-1">
-            {/* Call State Toggle Button */}
-            <button
-              onClick={() => onCallStateChange?.(!isInCall)}
-              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                isInCall 
-                  ? 'bg-red-500 hover:bg-red-600 text-white' 
-                  : 'bg-white/20 hover:bg-white/30 text-white'
-              }`}
-              title={isInCall ? 'Mark call as ended' : 'Mark as in call'}
-            >
-              {isInCall ? '📞 In Call' : '📞 Mark Call'}
-            </button>
-            
             <button
               onClick={() => setIsMinimized(!isMinimized)}
               className="text-white/80 hover:text-white transition-colors p-1"
@@ -126,8 +113,8 @@ export default function DraggableDialer({ isOpen, phoneNumber, metadata, onClose
             <ResizableBox
               width={size.width}
               height={size.height - 48}
-              minConstraints={[300, 200]}
-              maxConstraints={[800, 800]}
+              minConstraints={[300, 400]}
+              maxConstraints={[500, 700]}
               onResize={(e: any, data: any) => {
                 setSize({
                   width: data.size.width,
@@ -175,7 +162,9 @@ export default function DraggableDialer({ isOpen, phoneNumber, metadata, onClose
                                 className="rounded-b-lg"
                                 style={{ 
                                   border: 'none',
-                                  background: 'white'
+                                  background: 'white',
+                                  minHeight: '100%',
+                                  minWidth: '100%'
                                 }}
                                 onLoad={() => {
                                   console.log('JustCall dialer iframe loaded');
