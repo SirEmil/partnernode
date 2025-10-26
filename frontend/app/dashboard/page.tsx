@@ -1916,14 +1916,14 @@ export default function Dashboard() {
                   <span>SMS</span>
                 </button>
                 
-                {/* Leaderboard - Compact */}
-                <button
+                {/* Leaderboard - Compact - DISABLED */}
+                {/* <button
                   onClick={() => router.push('/leaderboard')}
                   className="flex items-center space-x-1.5 px-2.5 py-1.5 text-xs bg-gradient-to-r from-yellow-400 to-yellow-600 text-white rounded-md hover:from-yellow-500 hover:to-yellow-700 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   <Trophy className="w-3.5 h-3.5" />
                   <span>🏆</span>
-                </button>
+                </button> */}
               </div>
               
               {/* Dialer - JustCall Integration */}
@@ -2900,13 +2900,13 @@ export default function Dashboard() {
                   <span className="text-orange-700 font-medium text-sm">Under Development</span>
                 </div>
                 <p className="text-orange-600 text-sm">
-                  This help system is currently being built. Soon you'll be able to send inquiries and get quick feedback!
+                  This chat system is currently being built and will be used for internal team communication and support.
                 </p>
               </div>
               
               {/* Coming Soon Features */}
               <div className="space-y-4">
-                <h4 className="font-semibold text-gray-900 mb-3">Coming Soon:</h4>
+                <h4 className="font-semibold text-gray-900 mb-3">What this will be used for:</h4>
                 
                 <div className="space-y-3">
                   <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
@@ -2914,8 +2914,8 @@ export default function Dashboard() {
                       <Mail className="w-4 h-4 text-blue-600" />
                     </div>
                     <div>
-                      <h5 className="font-medium text-gray-900 text-sm">Quick Inquiries</h5>
-                      <p className="text-gray-600 text-xs">Send questions directly to support team</p>
+                      <h5 className="font-medium text-gray-900 text-sm">Internal Team Communication</h5>
+                      <p className="text-gray-600 text-xs">Chat with other sales reps and team members</p>
                     </div>
                   </div>
                   
@@ -2924,8 +2924,8 @@ export default function Dashboard() {
                       <MessageSquare className="w-4 h-4 text-green-600" />
                     </div>
                     <div>
-                      <h5 className="font-medium text-gray-900 text-sm">Live Chat</h5>
-                      <p className="text-gray-600 text-xs">Get instant responses from support</p>
+                      <h5 className="font-medium text-gray-900 text-sm">Quick Support</h5>
+                      <p className="text-gray-600 text-xs">Get instant help with system questions</p>
                     </div>
                   </div>
                   
@@ -2934,8 +2934,18 @@ export default function Dashboard() {
                       <Users className="w-4 h-4 text-purple-600" />
                     </div>
                     <div>
-                      <h5 className="font-medium text-gray-900 text-sm">Team Support</h5>
-                      <p className="text-gray-600 text-xs">Connect with your sales team</p>
+                      <h5 className="font-medium text-gray-900 text-sm">Lead Collaboration</h5>
+                      <p className="text-gray-600 text-xs">Discuss leads and share insights with team</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <HelpCircle className="w-4 h-4 text-indigo-600" />
+                    </div>
+                    <div>
+                      <h5 className="font-medium text-gray-900 text-sm">Admin Notifications</h5>
+                      <p className="text-gray-600 text-xs">Receive updates and announcements</p>
                     </div>
                   </div>
                 </div>
@@ -2949,7 +2959,7 @@ export default function Dashboard() {
                 </p>
                 <div className="flex items-center space-x-2 text-blue-600 text-sm">
                   <Mail className="w-4 h-4" />
-                  <span>support@yourcompany.com</span>
+                  <span>support@norgesmediehus.no</span>
                 </div>
               </div>
             </div>
