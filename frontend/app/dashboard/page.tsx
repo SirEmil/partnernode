@@ -762,7 +762,7 @@ export default function Dashboard() {
                 owner_name: "Current User",
                 person_name: 'Unknown',
                 org_name: "Unknown Company",
-                status: "open",
+          status: "open",
                 add_time: item.addedAt || new Date().toISOString(),
                 phone: '',
                 email: '',
@@ -2835,13 +2835,13 @@ export default function Dashboard() {
                   </p>
                   <div className="flex items-center justify-center space-x-4">
                     {user?.authLevel === 1 ? (
-                      <button
-                        onClick={() => router.push('/admin/control-panel')}
-                        className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                      >
-                        <Workflow className="w-4 h-4" />
-                        <span>View All Pipelines</span>
-                      </button>
+                    <button
+                      onClick={() => router.push('/admin/control-panel')}
+                      className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      <Workflow className="w-4 h-4" />
+                      <span>View All Pipelines</span>
+                    </button>
                     ) : (
                       <div className="text-center">
                         <p className="text-sm text-gray-500 mb-2">Contact your administrator to:</p>
@@ -3018,6 +3018,17 @@ export default function Dashboard() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter contact person name"
                   />
+                  {leadEditForm.companyName && (
+                    <button
+                      onClick={() => {
+                        const searchQuery = `${leadEditForm.companyName} ${leadEditForm.address || ''} ${leadEditForm.postal_code || ''}`.trim();
+                        window.open(`https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`, '_blank');
+                      }}
+                      className="mt-2 px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium text-xs"
+                    >
+                      Profil
+                    </button>
+                  )}
                 </div>
               </div>
               
@@ -3026,13 +3037,23 @@ export default function Dashboard() {
                 <label className="block text-sm font-medium text-gray-500 mb-2">
                   Organization Number
                 </label>
-                <input
-                  type="text"
-                  value={leadEditForm.org_number}
-                  readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed"
-                  placeholder="Organization number"
-                />
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={leadEditForm.org_number}
+                    readOnly
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed"
+                    placeholder="Organization number"
+                  />
+                  {leadEditForm.org_number && (
+                    <button
+                      onClick={() => window.open(`https://www.proff.no/bransjes%C3%B8k?q=${leadEditForm.org_number}`, '_blank')}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium text-sm flex items-center space-x-1"
+                    >
+                      <span>Proff</span>
+                    </button>
+                  )}
+                </div>
               </div>
               
               {/* Contact Information */}
@@ -3122,7 +3143,20 @@ export default function Dashboard() {
               
               {/* Footer */}
               <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
-                <div>
+                <div className="flex items-center space-x-2">
+                  {editingLead?.phone && (
+                    <button
+                      onClick={() => {
+                        if (editingLead) {
+                          openJustCallDialerWithLead(editingLead);
+                        }
+                      }}
+                      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center space-x-2"
+                    >
+                      <Phone className="w-4 h-4" />
+                      <span>Call</span>
+                    </button>
+                  )}
                   {editingLead?.org_number && (
                     <button
                       onClick={handleContractButton}
