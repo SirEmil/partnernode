@@ -14,6 +14,7 @@ import {
   ChevronUp,
   CheckCircle,
   XCircle,
+  X,
   Workflow,
   GripVertical,
   Database,
@@ -30,7 +31,6 @@ import {
   Upload,
   Download,
   FileText,
-  X,
   HelpCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -417,6 +417,12 @@ export default function ControlPanelPage() {
   const [showPipelineModal, setShowPipelineModal] = useState(false);
   const [selectedPipelineId, setSelectedPipelineId] = useState('');
   const [selectedStageId, setSelectedStageId] = useState('');
+  
+  // Bulk assignment control panel state
+  const [filterPrefix, setFilterPrefix] = useState<string>('');
+  const [filterLastCallMonths, setFilterLastCallMonths] = useState<number | null>(null);
+  const [pipelineForAssignment, setPipelineForAssignment] = useState<string>('');
+  const [stageForAssignment, setStageForAssignment] = useState<string>('');
   
   // Bulk selection functions
   const toggleLeadSelection = (leadId: string) => {
@@ -2081,6 +2087,9 @@ export default function ControlPanelPage() {
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-60">
                               Lead
                             </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                              Prefix
+                            </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
                               Company
                             </th>
@@ -2158,6 +2167,17 @@ export default function ControlPanelPage() {
                                     </div>
                                   </div>
                                 </div>
+                              </td>
+                              
+                              {/* Prefix */}
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                {lead.prefix ? (
+                                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-800">
+                                    {lead.prefix}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400 text-xs">—</span>
+                                )}
                               </td>
                               
                               {/* Company */}
@@ -2462,6 +2482,256 @@ export default function ControlPanelPage() {
                         );
                       })()}
                     </div>
+                    
+                    {/* Bulk Assignment Control Panel */}
+                    {selectedSection === 'leads' && (
+                      <div className="border-t mt-6">
+                        <div className="p-6 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg border border-purple-200">
+                          <div className="flex items-center space-x-2 mb-4">
+                            <Workflow className="w-5 h-5 text-purple-600" />
+                            <h3 className="text-lg font-semibold text-gray-900">Bulk Pipeline Assignment</h3>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            {/* Pipeline Selection */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Select Pipeline
+                              </label>
+                              <select
+                                value={pipelineForAssignment}
+                                onChange={(e) => {
+                                  setPipelineForAssignment(e.target.value);
+                                  setStageForAssignment(''); // Reset stage when pipeline changes
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+                              >
+                                <option value="">Choose a pipeline...</option>
+                                {pipelines.map((pipeline) => (
+                                  <option key={pipeline.id} value={pipeline.id}>
+                                    {pipeline.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            
+                            {/* Stage Selection */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Select Stage
+                              </label>
+                              <select
+                                value={stageForAssignment}
+                                onChange={(e) => setStageForAssignment(e.target.value)}
+                                disabled={!pipelineForAssignment}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed bg-white"
+                              >
+                                <option value="">Choose a stage...</option>
+                                {pipelines
+                                  .find(p => p.id === pipelineForAssignment)
+                                  ?.stages.map((stage) => (
+                                    <option key={stage.id} value={stage.id}>
+                                      {stage.name}
+                                    </option>
+                                  ))}
+                              </select>
+                            </div>
+                          </div>
+                          
+                          {/* Filter Options */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            {/* Prefix Filter */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Filter by Prefix (optional)
+                              </label>
+                              <input
+                                type="text"
+                                value={filterPrefix}
+                                onChange={(e) => setFilterPrefix(e.target.value)}
+                                placeholder="e.g. pl or we"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+                              />
+                            </div>
+                            
+                            {/* Last Call Filter */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Not Called in Last (months)
+                              </label>
+                              <select
+                                value={filterLastCallMonths || ''}
+                                onChange={(e) => setFilterLastCallMonths(e.target.value ? parseInt(e.target.value) : null)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+                              >
+                                <option value="">No filter</option>
+                                <option value="1">1 month</option>
+                                <option value="2">2 months</option>
+                                <option value="3">3 months</option>
+                                <option value="6">6 months</option>
+                              </select>
+                            </div>
+                          </div>
+                          
+                          {/* Selection Controls */}
+                          <div className="flex items-center justify-between p-3 bg-purple-100 rounded-lg border border-purple-300 mb-4">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-medium text-purple-900">
+                                {selectedLeads.size > 0 ? `${selectedLeads.size} lead${selectedLeads.size !== 1 ? 's' : ''} selected` : 'No leads selected'}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                // Filter leads based on criteria - only leads NOT in a pipeline
+                                let filteredLeads = leads.filter(l => !l.active_in_pipeline || l.active_in_pipeline === '');
+                                
+                                if (filterPrefix) {
+                                  filteredLeads = filteredLeads.filter(l => l.prefix === filterPrefix);
+                                }
+                                
+                                if (filterLastCallMonths) {
+                                  const cutoffDate = new Date();
+                                  cutoffDate.setMonth(cutoffDate.getMonth() - filterLastCallMonths);
+                                  filteredLeads = filteredLeads.filter(l => {
+                                    if (!l.lastActivityAt) return true; // No activity = match
+                                    return new Date(l.lastActivityAt) < cutoffDate;
+                                  });
+                                }
+                                
+                                // Limit to 50 leads
+                                const limitedLeads = filteredLeads.slice(0, 50);
+                                setSelectedLeads(new Set(limitedLeads.map(l => l.id)));
+                                toast.success(`Selected ${limitedLeads.length} leads (excluding leads already in pipeline)`);
+                              }}
+                              className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                            >
+                              Apply Filters & Select (max 50)
+                            </button>
+                          </div>
+                          
+                          {/* Selected Leads Preview */}
+                          {selectedLeads.size > 0 && (
+                            <div className="mb-4">
+                              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                                <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                                  <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
+                                  Preview: {selectedLeads.size} leads to be assigned
+                                </h4>
+                                <div className="max-h-60 overflow-y-auto space-y-2">
+                                  {Array.from(selectedLeads).slice(0, 10).map((leadId, index) => {
+                                    const lead = leads.find(l => l.id === leadId);
+                                    if (!lead) return null;
+                                    return (
+                                      <div key={leadId} className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200">
+                                        <div className="flex-1">
+                                          <p className="text-sm font-medium text-gray-900">{lead.title || lead.name || 'No title'}</p>
+                                          {(lead.companyName || lead.orgName) && (
+                                            <p className="text-xs text-gray-500">{lead.companyName || lead.orgName}</p>
+                                          )}
+                                        </div>
+                                        <button
+                                          onClick={() => {
+                                            const newSet = new Set(selectedLeads);
+                                            newSet.delete(leadId);
+                                            setSelectedLeads(newSet);
+                                          }}
+                                          className="ml-2 text-red-500 hover:text-red-700 transition-colors"
+                                        >
+                                          <X className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                {selectedLeads.size > 10 && (
+                                  <p className="text-xs text-gray-500 mt-2">
+                                    ... and {selectedLeads.size - 10} more leads
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Assignment Button */}
+                          <button
+                            onClick={async () => {
+                              if (!pipelineForAssignment || !stageForAssignment || selectedLeads.size === 0) {
+                                toast.error('Please select a pipeline, stage, and at least one lead');
+                                return;
+                              }
+                              
+                              if (selectedLeads.size < 5) {
+                                toast.error('Please select at least 5 leads');
+                                return;
+                              }
+                              
+                              if (selectedLeads.size > 50) {
+                                toast.error('Please select no more than 50 leads');
+                                return;
+                              }
+                              
+                              toast.loading(`Assigning ${selectedLeads.size} leads...`);
+                              
+                              try {
+                                const token = localStorage.getItem('authToken');
+                                if (!token) {
+                                  toast.error('Authentication token missing');
+                                  return;
+                                }
+                                
+                                const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+                                
+                                // Call the bulk assignment endpoint
+                                const leadIdsArray = Array.from(selectedLeads);
+                                const response = await fetch(`${API_BASE_URL}/api/pipelines/${pipelineForAssignment}/leads`, {
+                                  method: 'POST',
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${token}`
+                                  },
+                                  body: JSON.stringify({
+                                    leadIds: leadIdsArray,
+                                    stageId: stageForAssignment
+                                  })
+                                });
+                                
+                                if (!response.ok) {
+                                  const errorData = await response.json();
+                                  throw new Error(errorData.message || 'Failed to assign leads');
+                                }
+                                
+                                const result = await response.json();
+                                toast.dismiss();
+                                toast.success(`Successfully assigned ${selectedLeads.size} leads to pipeline!`);
+                                
+                                // Reset state
+                                setSelectedLeads(new Set());
+                                setPipelineForAssignment('');
+                                setStageForAssignment('');
+                                setFilterPrefix('');
+                                setFilterLastCallMonths(null);
+                                
+                                // Refresh leads to show updated pipeline assignment
+                                window.location.reload();
+                              } catch (error: any) {
+                                toast.dismiss();
+                                toast.error(error.message || 'Failed to assign leads');
+                                console.error(error);
+                              }
+                            }}
+                            disabled={!pipelineForAssignment || !stageForAssignment || selectedLeads.size === 0 || selectedLeads.size < 5}
+                            className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium rounded-lg hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
+                          >
+                            Assign {selectedLeads.size > 0 ? `${selectedLeads.size} ` : ''}Leads to Pipeline
+                          </button>
+                          
+                          {/* Info */}
+                          <p className="text-xs text-gray-500 mt-3 text-center">
+                            Select 5-50 leads to assign them to a pipeline and stage
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

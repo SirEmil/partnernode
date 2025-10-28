@@ -201,6 +201,7 @@ export default function Dashboard() {
   
   // Admin dropdown state
   const [showAdminDropdown, setShowAdminDropdown] = useState(false);
+  const [allPipelines, setAllPipelines] = useState<Pipeline[]>([]);
   
   // Close admin dropdown when clicking outside
   useEffect(() => {
@@ -603,6 +604,9 @@ export default function Dashboard() {
       if (response.ok) {
         const result = await response.json();
         const pipelines = result.pipelines || [];
+        
+        // Store all pipelines for bulk assignment
+        setAllPipelines(pipelines);
         
         // Find pipeline assigned to current user
         const userPipeline = pipelines.find((pipeline: Pipeline) => 

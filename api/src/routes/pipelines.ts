@@ -896,6 +896,13 @@ router.post('/:pipelineId/leads', authenticateToken, async (req, res) => {
 
       const leadData = leadDoc.data();
       
+      // Update the lead's active_in_pipeline field
+      await db.collection('leads').doc(leadId).update({
+        active_in_pipeline: pipelineId,
+        current_stage: stageId,
+        updatedAt: new Date()
+      });
+      
       // Create pipeline item - only store references, not duplicate data
       const itemData = {
         pipelineId: pipelineId,
