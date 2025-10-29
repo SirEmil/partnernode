@@ -647,7 +647,8 @@ router.post('/:id/convert-to-customer', authenticateToken, async (req, res) => {
       status: 'customer',
       convertedToCustomerAt: new Date(),
       convertedBy: userId,
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      active_in_pipeline: '' // Clear pipeline assignment
     };
 
     // Add SMS record ID to conversion array if provided
@@ -658,6 +659,27 @@ router.post('/:id/convert-to-customer', authenticateToken, async (req, res) => {
 
     // Update lead status to indicate it's now a customer
     await db.collection('leads').doc(leadId).update(updatePayload);
+
+    // Remove lead from pipeline if they are in one
+    if (leadData && leadData.active_in_pipeline) {
+      const pipelineId = leadData.active_in_pipeline;
+      console.log(`🔄 Removing lead from pipeline: ${pipelineId}`);
+      
+      // Find and delete the pipeline item for this lead
+      const pipelineItemsSnapshot = await db.collection('pipelineItems')
+        .where('pipelineId', '==', pipelineId)
+        .where('leadId', '==', leadId)
+        .get();
+      
+      const batch = db.batch();
+      pipelineItemsSnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+        console.log(`🗑️ Deleting pipeline item: ${doc.id}`);
+      });
+      
+      await batch.commit();
+      console.log(`✅ Lead removed from pipeline ${pipelineId}`);
+    }
 
     // Add lightweight entry to the user's assigned sales database
     const databaseEntry = {

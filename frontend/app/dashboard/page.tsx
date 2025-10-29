@@ -175,6 +175,8 @@ export default function Dashboard() {
   const [showSpeechBubble, setShowSpeechBubble] = useState(false);
   const [callLogs, setCallLogs] = useState<any[]>([]);
   const [callLogsLoading, setCallLogsLoading] = useState(false);
+  const [smsLogs, setSmsLogs] = useState<any[]>([]);
+  const [combinedLogs, setCombinedLogs] = useState<any[]>([]);
   
   // Help widget state
   const [showHelpWidget, setShowHelpWidget] = useState(false);
@@ -1048,8 +1050,9 @@ export default function Dashboard() {
     });
     setShowLeadEditModal(true);
     
-    // Fetch call logs for this lead using lead ID
+    // Fetch call logs and SMS logs for this lead using lead ID
     fetchCallLogsForLead(lead.id.toString());
+    fetchSmsLogsForLead(lead.id.toString());
   };
 
   const fetchCallLogsForLead = async (leadId: string) => {
@@ -1097,6 +1100,59 @@ export default function Dashboard() {
       setCallLogsLoading(false);
     }
   };
+
+  const fetchSmsLogsForLead = async (leadId: string) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.error('No auth token found');
+        return;
+      }
+
+      console.log('📧 [SMS LOGS] Fetching SMS logs for lead ID:', leadId);
+
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      
+      // Fetch SMS records for this lead
+      const response = await fetch(`${API_BASE_URL}/api/sms/records-by-leads`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ leadIds: [leadId] })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📧 [SMS LOGS] Response data:', data);
+        console.log('📧 [SMS LOGS] Number of SMS logs received:', data.smsRecords?.length || 0);
+        setSmsLogs(data.smsRecords || []);
+      } else {
+        const errorData = await response.text();
+        console.error('❌ [SMS LOGS] Failed to fetch SMS logs');
+        console.error('❌ [SMS LOGS] Error response:', errorData);
+        setSmsLogs([]);
+      }
+    } catch (error) {
+      console.error('❌ [SMS LOGS] Error fetching SMS logs:', error);
+      setSmsLogs([]);
+    }
+  };
+
+  // Combine and sort call logs and SMS logs whenever they change
+  useEffect(() => {
+    const combined = [
+      ...callLogs.map(log => ({ ...log, type: 'call', timestamp: new Date(log.startTime || log.createdAt) })),
+      ...smsLogs.map(log => ({ ...log, type: 'sms', timestamp: new Date(log.sentAt || log.createdAt) }))
+    ];
+    
+    // Sort by timestamp, most recent first
+    combined.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    
+    console.log('📊 [COMBINED LOGS] Total logs:', combined.length, '(Calls:', callLogs.length, ', SMS:', smsLogs.length, ')');
+    setCombinedLogs(combined);
+  }, [callLogs, smsLogs]);
 
   const handleLeadEditSubmit = async () => {
     if (!editingLead) return;
@@ -3426,15 +3482,15 @@ export default function Dashboard() {
               </div>
             </div>
             
-            {/* Call Log Sidebar */}
+            {/* Activity Log Sidebar */}
             <div className="w-96 border-l border-gray-200 bg-gray-50 flex flex-col">
               <div className="p-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                   <Phone className="w-5 h-5 mr-2" />
-                  Call History
+                  Activity History
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  {editingLead.phone ? `Calls to ${editingLead.phone}` : 'No phone number'}
+                  Calls & SMS Contracts
                 </p>
               </div>
               
@@ -3443,79 +3499,130 @@ export default function Dashboard() {
                   <div className="flex items-center justify-center h-32">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                   </div>
-                ) : callLogs.length > 0 ? (
+                ) : combinedLogs.length > 0 ? (
                   <div className="space-y-3">
-                    {callLogs.map((log, index) => (
-                      <div key={log.id || index} className="bg-white rounded-lg p-4 border border-gray-200">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center space-x-2">
-                            <div className={`w-3 h-3 rounded-full ${
-                              log.callType === 'answered' ? 'bg-green-500' : 'bg-red-500'
-                            }`}></div>
-                            <span className="text-sm font-medium text-gray-900">
-                              {log.callType === 'answered' ? 'Answered' : 'Unanswered'}
-                            </span>
-                            <span className="text-xs text-gray-500 px-2 py-1 bg-gray-100 rounded">
-                              {log.callDirection}
-                            </span>
-                          </div>
-                          <span className="text-xs text-gray-500">
-                            {log.startTime ? new Date(log.startTime).toLocaleDateString() : 'Unknown date'}
-                          </span>
-                        </div>
-                        
-                        <div className="text-sm text-gray-600 mb-2">
-                          <div className="flex justify-between">
-                            <span>Duration: {log.duration ? `${log.duration}s` : 'N/A'}</span>
-                            <span>Cost: {log.costIncurred ? `$${log.costIncurred.toFixed(2)}` : 'N/A'}</span>
-                          </div>
-                          <div className="mt-1">
+                    {combinedLogs.map((log, index) => (
+                      log.type === 'call' ? (
+                        // Call Log Entry
+                        <div key={log.id || index} className="bg-white rounded-lg p-4 border border-gray-200">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <Phone className="w-4 h-4 text-blue-600" />
+                              <div className={`w-3 h-3 rounded-full ${
+                                log.callType === 'answered' ? 'bg-green-500' : 'bg-red-500'
+                              }`}></div>
+                              <span className="text-sm font-medium text-gray-900">
+                                {log.callType === 'answered' ? 'Answered' : 'Unanswered'}
+                              </span>
+                              <span className="text-xs text-gray-500 px-2 py-1 bg-gray-100 rounded">
+                                {log.callDirection}
+                              </span>
+                            </div>
                             <span className="text-xs text-gray-500">
-                              {log.fromNumber} → {log.toNumber}
+                              {log.startTime ? new Date(log.startTime).toLocaleDateString() : 'Unknown date'}
                             </span>
                           </div>
-                          {log.agentName && (
-                            <div className="mt-1 text-xs text-gray-500">
-                              Agent: {log.agentName}
+                          
+                          <div className="text-sm text-gray-600 mb-2">
+                            <div className="flex justify-between">
+                              <span>Duration: {log.duration ? `${log.duration}s` : 'N/A'}</span>
+                              <span>Cost: {log.costIncurred ? `$${log.costIncurred.toFixed(2)}` : 'N/A'}</span>
+                            </div>
+                            <div className="mt-1">
+                              <span className="text-xs text-gray-500">
+                                {log.fromNumber} → {log.toNumber}
+                              </span>
+                            </div>
+                            {log.agentName && (
+                              <div className="mt-1 text-xs text-gray-500">
+                                Agent: {log.agentName}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {log.notes && (
+                            <div className="mt-2 p-2 bg-gray-100 rounded text-xs text-gray-700">
+                              <strong>Notes:</strong> {log.notes}
                             </div>
                           )}
+                          
+                          {log.disposition && (
+                            <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700">
+                              <strong>Disposition:</strong> {log.disposition}
+                            </div>
+                          )}
+                          
+                          {log.recordingUrl && (
+                            <div className="mt-2">
+                              <a 
+                                href={log.recordingUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 hover:text-blue-800 underline"
+                              >
+                                🎵 Listen to recording
+                              </a>
+                            </div>
+                          )}
+                          
+                          <div className="mt-2 text-xs text-gray-400">
+                            {log.startTime ? new Date(log.startTime).toLocaleString() : 'Unknown time'}
+                          </div>
                         </div>
-                        
-                        {log.notes && (
-                          <div className="mt-2 p-2 bg-gray-100 rounded text-xs text-gray-700">
-                            <strong>Notes:</strong> {log.notes}
+                      ) : (
+                        // SMS Log Entry
+                        <div key={log.id || index} className="bg-green-50 rounded-lg p-4 border border-green-200">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <MessageSquare className="w-4 h-4 text-green-600" />
+                              <span className="text-sm font-medium text-gray-900">
+                                SMS Contract
+                              </span>
+                              {log.contractConfirmed && (
+                                <span className="text-xs text-green-600 px-2 py-1 bg-green-100 rounded font-semibold">
+                                  ✓ CONFIRMED
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {log.sentAt ? new Date(log.sentAt).toLocaleDateString() : 'Unknown date'}
+                            </span>
                           </div>
-                        )}
-                        
-                        {log.disposition && (
-                          <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700">
-                            <strong>Disposition:</strong> {log.disposition}
+                          
+                          <div className="text-sm text-gray-700 mb-2">
+                            <div className="font-medium mb-1">
+                              {log.productName || 'Product/Service'}
+                            </div>
+                            {log.price && (
+                              <div className="text-xs text-gray-600">
+                                Price: {log.price},- eks. mva
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-600 mt-1">
+                              To: {log.contactNumber}
+                            </div>
                           </div>
-                        )}
-                        
-                        {log.recordingUrl && (
-                          <div className="mt-2">
-                            <a 
-                              href={log.recordingUrl} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-600 hover:text-blue-800 underline"
-                            >
-                              🎵 Listen to recording
-                            </a>
+                          
+                          {log.contractConfirmed && log.contractResponse && (
+                            <div className="mt-2 p-2 bg-green-100 rounded text-xs text-green-800">
+                              <strong>Response:</strong> "{log.contractResponse}"
+                              <div className="text-xs text-gray-600 mt-1">
+                                Confirmed: {log.contractConfirmedAt ? new Date(log.contractConfirmedAt).toLocaleString() : 'N/A'}
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div className="mt-2 text-xs text-gray-400">
+                            {log.sentAt ? new Date(log.sentAt).toLocaleString() : 'Unknown time'}
                           </div>
-                        )}
-                        
-                        <div className="mt-2 text-xs text-gray-400">
-                          Source: {log.metadata?.source || 'Unknown'}
                         </div>
-                      </div>
+                      )
                     ))}
                   </div>
                 ) : (
                   <div className="text-center text-gray-500 py-8">
                     <Phone className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p>No calls found for this number</p>
+                    <p>No activity found for this lead</p>
                   </div>
                 )}
               </div>
