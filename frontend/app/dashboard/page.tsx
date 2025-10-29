@@ -24,7 +24,8 @@ import {
   ChevronDown,
   StickyNote,
   FileText,
-  BarChart3
+  BarChart3,
+  MoreVertical
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -203,6 +204,9 @@ export default function Dashboard() {
   const [showAdminDropdown, setShowAdminDropdown] = useState(false);
   const [allPipelines, setAllPipelines] = useState<Pipeline[]>([]);
   
+  // Lead menu dropdown state
+  const [openLeadMenuId, setOpenLeadMenuId] = useState<string | null>(null);
+  
   // Close admin dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -220,6 +224,24 @@ export default function Dashboard() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showAdminDropdown]);
+
+  // Close lead menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (openLeadMenuId && !target.closest('.relative')) {
+        setOpenLeadMenuId(null);
+      }
+    };
+
+    if (openLeadMenuId) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openLeadMenuId]);
 
   // Monitor call state when dialer is open
   useEffect(() => {
@@ -975,13 +997,11 @@ export default function Dashboard() {
     });
     setShowLeadEditModal(true);
     
-    // Fetch call logs for this lead's phone number
-    if (lead.phone) {
-      fetchCallLogsForLead(lead.phone);
-    }
+    // Fetch call logs for this lead using lead ID
+    fetchCallLogsForLead(lead.id.toString());
   };
 
-  const fetchCallLogsForLead = async (phoneNumber: string) => {
+  const fetchCallLogsForLead = async (leadId: string) => {
     setCallLogsLoading(true);
     try {
       const token = localStorage.getItem('authToken');
@@ -991,9 +1011,12 @@ export default function Dashboard() {
         return;
       }
 
+      console.log('📞 [CALL LOGS] Fetching call logs for lead ID:', leadId);
+
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
-      const url = `${API_BASE_URL}/api/calls/justcall-logs?phone_number=${encodeURIComponent(phoneNumber)}&limit=50`;
+      const url = `${API_BASE_URL}/api/calls/justcall-logs?lead_id=${encodeURIComponent(leadId)}&limit=50`;
       
+      console.log('📞 [CALL LOGS] API URL:', url);
       
       // Call our backend endpoint that will fetch from JustCall API
       const response = await fetch(url, {
@@ -1002,15 +1025,22 @@ export default function Dashboard() {
         }
       });
 
+      console.log('📞 [CALL LOGS] Response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('📞 [CALL LOGS] Response data:', data);
+        console.log('📞 [CALL LOGS] Number of call logs received:', data.callLogs?.length || 0);
+        console.log('📞 [CALL LOGS] Call logs array:', data.callLogs);
         setCallLogs(data.callLogs || []);
       } else {
-        console.error('Failed to fetch call logs from JustCall');
+        const errorData = await response.text();
+        console.error('❌ [CALL LOGS] Failed to fetch call logs from JustCall');
+        console.error('❌ [CALL LOGS] Error response:', errorData);
         setCallLogs([]);
       }
     } catch (error) {
-      console.error('Error fetching call logs from JustCall:', error);
+      console.error('❌ [CALL LOGS] Error fetching call logs from JustCall:', error);
       setCallLogs([]);
     } finally {
       setCallLogsLoading(false);
@@ -1079,8 +1109,20 @@ export default function Dashboard() {
         });
 
         toast.success('Lead updated successfully');
-        setShowLeadEditModal(false);
-        setEditingLead(null);
+        // Don't close modal - keep it open so user can continue viewing call logs
+        // Update editingLead with the new values
+        setEditingLead({
+          ...editingLead,
+          companyName: leadEditForm.companyName,
+          name: leadEditForm.name,
+          phone: leadEditForm.phone,
+          email: leadEditForm.email,
+          notes: leadEditForm.notes,
+          postal_code: leadEditForm.postal_code,
+          postal_area: leadEditForm.postal_area,
+          address: leadEditForm.address,
+          city: leadEditForm.city
+        });
       } else {
         const errorData = await response.json();
         toast.error(`Failed to update lead: ${errorData.message || 'Unknown error'}`);
@@ -1154,6 +1196,59 @@ export default function Dashboard() {
     }, 100);
   };
 
+  // Remove lead from pipeline
+  const handleRemoveLeadFromPipeline = async (leadId: string | number) => {
+    if (!assignedPipeline) return;
+    
+    if (!confirm('Are you sure you want to remove this lead from the pipeline?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
+
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      
+      // Remove from pipeline items
+      const removeResponse = await fetch(`${API_BASE_URL}/api/pipelines/${assignedPipeline.id}/leads`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ leadIds: [leadId.toString()] })
+      });
+
+      if (!removeResponse.ok) {
+        const errorData = await removeResponse.json();
+        throw new Error(errorData.message || 'Failed to remove lead from pipeline');
+      }
+
+      toast.success('Lead removed from pipeline');
+      
+      // Update local state to remove the lead from the pipeline
+      const leadIdStr = leadId.toString();
+      setPipelineLeads(prev => {
+        const newLeads = { ...prev };
+        Object.keys(newLeads).forEach(stageId => {
+          newLeads[stageId] = newLeads[stageId].filter(l => l.id.toString() !== leadIdStr);
+        });
+        return newLeads;
+      });
+      
+      // Close the menu
+      setOpenLeadMenuId(null);
+      
+    } catch (error: any) {
+      console.error('Error removing lead from pipeline:', error);
+      toast.error(error.message || 'Failed to remove lead from pipeline');
+    }
+  };
+
   // Sortable Lead Component
   const SortableLead = ({ lead }: { lead: Lead }) => {
     const {
@@ -1202,6 +1297,32 @@ export default function Dashboard() {
             )}
           </div>
           <div className="flex-shrink-0 ml-2 flex flex-col items-end space-y-1">
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const leadIdStr = lead.id.toString();
+                  setOpenLeadMenuId(openLeadMenuId === leadIdStr ? null : leadIdStr);
+                }}
+                className="p-1 hover:bg-gray-100 rounded transition-colors"
+                title="Options"
+              >
+                <MoreVertical className="w-4 h-4 text-gray-600" />
+              </button>
+              {openLeadMenuId === lead.id.toString() && (
+                <div className="absolute right-0 top-6 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[120px]">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveLeadFromPipeline(lead.id);
+                    }}
+                    className="w-full px-4 py-2 text-sm text-left text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+            </div>
             <span className={`inline-block w-2 h-2 rounded-full ${
               lead.status === 'open' ? 'bg-green-500' : 'bg-gray-400'
             }`}></span>

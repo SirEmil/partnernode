@@ -1052,136 +1052,138 @@ async function handleCallCompleted(webhookData: any) {
   }
 }
 
-// Get call logs from JustCall API for a specific phone number
+// Get call logs for a specific lead from our database, then fetch details from JustCall
 router.get('/justcall-logs', authenticateToken, async (req, res) => {
   try {
-    const { phone_number, limit = 50 } = req.query;
+    const { lead_id, limit = 50 } = req.query;
     
-    if (!phone_number) {
+    console.log('📞 [BACKEND] Call logs request received');
+    console.log('📞 [BACKEND] Lead ID:', lead_id);
+    console.log('📞 [BACKEND] Limit:', limit);
+    
+    if (!lead_id) {
       return res.status(400).json({
         success: false,
-        message: 'Phone number is required'
+        message: 'Lead ID is required'
+      });
+    }
+
+    // Step 1: Query our database for call logs with this leadId
+    console.log('📞 [BACKEND] Querying database for call logs with leadId:', lead_id);
+    
+    const callLogsQuery = db.collection('callogs')
+      .where('leadId', '==', lead_id)
+      .limit(parseInt(limit as string));
+    
+    const snapshot = await callLogsQuery.get();
+    console.log('📞 [BACKEND] Found', snapshot.size, 'call logs in database');
+    
+    // Sort in JavaScript since we can't use orderBy without an index
+    const docs = snapshot.docs.sort((a, b) => {
+      const aTime = a.data().createdAt?.toMillis() || 0;
+      const bTime = b.data().createdAt?.toMillis() || 0;
+      return bTime - aTime; // desc order
+    });
+    
+    if (snapshot.empty) {
+      console.log('📞 [BACKEND] No call logs found for this lead');
+      return res.json({
+        success: true,
+        callLogs: [],
+        total: 0
       });
     }
 
     const justcallApiKey = process.env.JUSTCALL_API_KEY;
     const justcallApiSecret = process.env.JUSTCALL_API_SECRET;
     
-    
     if (!justcallApiKey || !justcallApiSecret) {
-      return res.status(500).json({
-        success: false,
-        message: 'JustCall API credentials not configured'
+      console.error('❌ [BACKEND] JustCall API credentials not configured');
+      // Return database logs without JustCall enrichment, but convert timestamps
+      const dbLogs = docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt,
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+          startTime: data.startTime?.toDate ? data.startTime.toDate().toISOString() : data.startTime,
+          endTime: data.endTime?.toDate ? data.endTime.toDate().toISOString() : data.endTime
+        };
+      });
+      return res.json({
+        success: true,
+        callLogs: dbLogs,
+        total: dbLogs.length
       });
     }
 
     // Create Basic Auth header for JustCall API
     const auth = Buffer.from(`${justcallApiKey}:${justcallApiSecret}`).toString('base64');
     
-    // Fetch call logs from JustCall API
-    const justcallUrl = `https://api.justcall.io/v2.1/calls?phone_number=${encodeURIComponent(phone_number as string)}&page=0&per_page=${limit}`;
-    
-    let justcallResponse;
-    try {
-      justcallResponse = await fetch(justcallUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Basic ${auth}`,
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
+    // Step 2: For each call log, fetch details from JustCall API
+    const transformedLogs = await Promise.all(
+      docs.map(async (doc) => {
+        const callLog = doc.data();
+        console.log('📞 [BACKEND] Processing call log:', doc.id, 'with JustCall ID:', callLog.justcallCallId);
+        
+        // Convert Firestore timestamps to ISO strings
+        const convertTimestamps = (data: any) => {
+          const converted = { ...data };
+          if (data.createdAt?.toDate) converted.createdAt = data.createdAt.toDate().toISOString();
+          if (data.updatedAt?.toDate) converted.updatedAt = data.updatedAt.toDate().toISOString();
+          if (data.startTime?.toDate) converted.startTime = data.startTime.toDate().toISOString();
+          if (data.endTime?.toDate) converted.endTime = data.endTime.toDate().toISOString();
+          return converted;
+        };
+        
+        // If we have a JustCall call ID, fetch full details
+        if (callLog.justcallCallId) {
+          try {
+            // Fetch single call details from JustCall
+            const justcallResponse = await axios.get(`https://api.justcall.io/v2.1/calls/${callLog.justcallCallId}`, {
+              headers: {
+                'Authorization': `Basic ${auth}`,
+                'Accept': 'application/json'
+              },
+              timeout: 5000
+            });
+            
+            const justcallData = justcallResponse.data;
+            console.log('📞 [BACKEND] Fetched JustCall details for call:', callLog.justcallCallId);
+            
+            // Merge database data with JustCall data and convert timestamps
+            return convertTimestamps({
+              id: doc.id,
+              ...callLog,
+              // Enrich with JustCall data
+              recordingUrl: justcallData.call_info?.recording || callLog.recordingUrl,
+              duration: justcallData.call_duration?.total_duration || callLog.duration,
+              disposition: justcallData.call_info?.disposition || callLog.disposition,
+              notes: justcallData.call_info?.notes || callLog.notes,
+              callQuality: justcallData.call_info?.rating || callLog.callQuality,
+              metadata: {
+                ...callLog.metadata,
+                justcallData: justcallData
+              }
+            });
+          } catch (error: any) {
+            console.error('❌ [BACKEND] Failed to fetch JustCall details for call:', callLog.justcallCallId, error.message);
+            // Return database data if JustCall fetch fails
+            return convertTimestamps({
+              id: doc.id,
+              ...callLog
+            });
+          }
         }
-      });
-    } catch (fetchError) {
-      console.error('❌ Network error calling JustCall API:', fetchError);
-      return res.status(500).json({
-        success: false,
-        message: `Network error calling JustCall API: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`
-      });
-    }
-
-    if (!justcallResponse.ok) {
-      const errorText = await justcallResponse.text();
-      console.error('❌ JustCall API error:', {
-        status: justcallResponse.status,
-        statusText: justcallResponse.statusText,
-        errorBody: errorText
-      });
-      return res.status(justcallResponse.status).json({
-        success: false,
-        message: `Failed to fetch call logs from JustCall API: ${justcallResponse.statusText}`,
-        error: errorText
-      });
-    }
-
-    const justcallData = await justcallResponse.json() as any;
-    
-    
-    // Filter calls to only include those involving the requested phone number
-    const filteredCalls = justcallData.data?.filter((call: any) => {
-      const contactNumber = call.contact_number;
-      const justcallNumber = call.justcall_number;
-      const requestedNumber = phone_number as string;
-      
-      // Normalize phone numbers for comparison (remove spaces, dashes, + signs)
-      const normalizeNumber = (num: string) => {
-        return num?.replace(/[\s\-\+\(\)]/g, '') || '';
-      };
-      
-      const normalizedContact = normalizeNumber(contactNumber);
-      const normalizedJustcall = normalizeNumber(justcallNumber);
-      const normalizedRequested = normalizeNumber(requestedNumber);
-      
-      // Also try with Norwegian country code (47) if the requested number doesn't have one
-      let normalizedRequestedWithCountry = normalizedRequested;
-      if (!normalizedRequested.startsWith('47') && normalizedRequested.length === 8) {
-        normalizedRequestedWithCountry = '47' + normalizedRequested;
-      }
-      
-      // Check if the requested number appears in either field (with or without country code)
-      const isRelevant = normalizedContact === normalizedRequested || 
-                        normalizedJustcall === normalizedRequested ||
-                        normalizedContact === normalizedRequestedWithCountry || 
-                        normalizedJustcall === normalizedRequestedWithCountry;
-      
-      
-      return isRelevant;
-    }) || [];
-    
-    
-    // Transform JustCall data to match our expected format
-    const transformedLogs = filteredCalls.map((call: any, index: number) => {
-      
-      const transformed = {
-        id: call.id,
-        justcallCallId: call.call_sid,
-        fromNumber: call.justcall_number,
-        toNumber: call.contact_number,
-        callDirection: call.call_info?.direction?.toLowerCase() || 'unknown',
-        status: call.call_info?.status || 'unknown',
-        callType: call.call_info?.type === 'answered' ? 'answered' : 'unanswered',
-        startTime: call.call_date && call.call_time ? new Date(`${call.call_date}T${call.call_time}`) : null,
-        endTime: null, // Not provided in this API
-        duration: call.call_duration?.total_duration || 0,
-        userId: call.agent_id?.toString() || 'unknown',
-        agentId: call.agent_id,
-        agentName: call.agent_name || 'Unknown Agent',
-        agentEmail: call.agent_email || '',
-        costIncurred: call.cost_incurred || 0,
-        recordingUrl: call.call_info?.recording || null,
-        callQuality: call.call_info?.rating || '',
-        disposition: call.call_info?.disposition || '',
-        notes: call.call_info?.notes || '',
-        createdAt: call.call_date && call.call_time ? new Date(`${call.call_date}T${call.call_time}`) : new Date(),
-        updatedAt: call.call_date && call.call_time ? new Date(`${call.call_date}T${call.call_time}`) : new Date(),
-        metadata: {
-          source: 'justcall_api',
-          justcallData: call
-        }
-      };
-      
-      
-      return transformed;
-    }) || [];
+        
+        // Return database data if no JustCall ID
+        return convertTimestamps({
+          id: doc.id,
+          ...callLog
+        });
+      })
+    );
 
 
     res.json({
