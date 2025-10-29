@@ -23,7 +23,9 @@ const sendSmsSchema = Joi.object({
   media_url: Joi.string().optional(), // Comma-separated URLs for media
   restrict_once: Joi.string().valid('Yes', 'No').optional().default('No'),
   schedule_at: Joi.string().optional(), // YYYY-MM-DD HH:mm:ss format
-  templateData: Joi.object().optional() // For dynamic template replacement
+  templateData: Joi.object().optional(), // For dynamic template replacement
+  leadId: Joi.string().optional(), // Internal tracking - NOT sent to JustCall
+  leadName: Joi.string().optional() // Internal tracking - NOT sent to JustCall
 });
 
 // Template processing function
@@ -76,14 +78,16 @@ router.post('/send', authenticateToken, async (req, res) => {
       });
     }
 
-    const { contact_number, body, justcall_number, media_url, restrict_once, schedule_at, templateData } = value;
+    const { contact_number, body, justcall_number, media_url, restrict_once, schedule_at, templateData, leadId, leadName } = req.body;
     const userId = req.user?.uid;
     
     console.log('SMS Send Request:', {
       userId: userId,
       contactNumber: contact_number,
       hasTemplateData: !!templateData,
-      templateDataKeys: templateData ? Object.keys(templateData) : []
+      templateDataKeys: templateData ? Object.keys(templateData) : [],
+      leadId: leadId,
+      leadName: leadName
     });
     
     // Process template if templateData is provided
@@ -208,8 +212,9 @@ router.post('/send', authenticateToken, async (req, res) => {
         // Template data (if used)
         templateData: templateData || null,
         
-        // Lead data (if available)
-        leadId: templateData?.leadId || null,
+        // Lead data (if available) - prioritize direct params over templateData
+        leadId: leadId || templateData?.leadId || null,
+        leadName: leadName || null,
         customerName: templateData?.customer_name || templateData?.Customer || null,
         companyName: templateData?.company_name || templateData?.Company || null,
         organizationNumber: templateData?.orgnr || templateData?.Orgnr || null,
@@ -243,8 +248,14 @@ router.post('/send', authenticateToken, async (req, res) => {
         messageId: smsRecord.messageId,
         userId: smsRecord.userId,
         contactNumber: smsRecord.contactNumber,
-        hasTemplateData: !!smsRecord.templateData
+        hasTemplateData: !!smsRecord.templateData,
+        leadId: smsRecord.leadId,
+        leadName: smsRecord.leadName
       });
+      
+      if (smsRecord.leadId) {
+        console.log(`✅ SMS linked to lead: ${smsRecord.leadId} (${smsRecord.leadName})`);
+      }
 
       // Save to Firestore
       const smsDocRef = await db.collection('smsRecords').add(smsRecord);
@@ -717,6 +728,70 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     console.error('Error deleting SMS record:', error);
     res.status(500).json({
       error: 'Failed to delete SMS record',
+      message: error.message
+    });
+  }
+});
+
+// Get SMS records for specific lead IDs
+router.post('/records-by-leads', authenticateToken, async (req, res) => {
+  try {
+    const { leadIds } = req.body;
+
+    if (!Array.isArray(leadIds) || leadIds.length === 0) {
+      return res.status(400).json({
+        error: 'leadIds array is required'
+      });
+    }
+
+    console.log(`📧 Fetching SMS records for ${leadIds.length} leads`);
+
+    // Firestore has a limit of 10 items for 'in' queries, so we need to batch
+    const batchSize = 10;
+    const batches = [];
+    
+    for (let i = 0; i < leadIds.length; i += batchSize) {
+      const batch = leadIds.slice(i, i + batchSize);
+      const snapshot = await db.collection('smsRecords')
+        .where('leadId', 'in', batch)
+        .get();
+      
+      batches.push(snapshot);
+    }
+
+    // Combine all results
+    const allRecords: any[] = [];
+    batches.forEach(snapshot => {
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        allRecords.push({
+          id: doc.id,
+          messageId: data.messageId,
+          leadId: data.leadId,
+          leadName: data.leadName,
+          contactNumber: data.contactNumber,
+          senderNumber: data.senderNumber,
+          contractConfirmed: data.contractConfirmed,
+          contractConfirmedAt: data.contractConfirmedAt?.toDate?.() || data.contractConfirmedAt,
+          sentAt: data.sentAt?.toDate?.() || data.sentAt,
+          createdAt: data.createdAt?.toDate?.() || data.createdAt
+        });
+      });
+    });
+
+    console.log(`✅ Found ${allRecords.length} SMS records for ${leadIds.length} leads`);
+    console.log(`📊 ${allRecords.filter(r => r.contractConfirmed).length} confirmed contracts`);
+
+    res.json({
+      success: true,
+      smsRecords: allRecords,
+      count: allRecords.length
+    });
+
+  } catch (error: any) {
+    console.error('Error fetching SMS records by leads:', error);
+    res.status(500).json({
+      error: 'Failed to fetch SMS records',
       message: error.message
     });
   }

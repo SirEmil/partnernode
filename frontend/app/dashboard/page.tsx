@@ -151,6 +151,7 @@ export default function Dashboard() {
   const [dataLoading, setDataLoading] = useState(false);
   const [sendingSms, setSendingSms] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [selectedLeadForSms, setSelectedLeadForSms] = useState<Lead | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [smsPhone, setSmsPhone] = useState('');
   const [assignedPipeline, setAssignedPipeline] = useState<Pipeline | null>(null);
@@ -206,6 +207,9 @@ export default function Dashboard() {
   
   // Lead menu dropdown state
   const [openLeadMenuId, setOpenLeadMenuId] = useState<string | null>(null);
+  
+  // Track leads with confirmed contracts and their SMS record IDs
+  const [leadsWithConfirmedContracts, setLeadsWithConfirmedContracts] = useState<Map<string, string>>(new Map());
   
   // Close admin dropdown when clicking outside
   useEffect(() => {
@@ -339,6 +343,8 @@ export default function Dashboard() {
     sentAt: Date;
     contractConfirmed: boolean;
     contractConfirmedAt?: Date;
+    leadId?: string;
+    leadName?: string;
   }>>([]);
 
   // Resend timer state
@@ -671,6 +677,48 @@ export default function Dashboard() {
     }
   };
 
+  // Check for leads with confirmed SMS contracts
+  const checkConfirmedContracts = async (leadIds: string[]) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token || leadIds.length === 0) return;
+
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      
+      // Fetch SMS records for all leads
+      const response = await fetch(`${API_BASE_URL}/api/sms/records-by-leads`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ leadIds })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📧 SMS records check:', data);
+        
+        // Map leads to their confirmed SMS records (leadId -> smsRecordId)
+        const confirmedLeadsMap = new Map<string, string>();
+        data.smsRecords?.forEach((record: any) => {
+          if (record.contractConfirmed && record.leadId) {
+            // Store the most recent confirmed SMS for this lead
+            confirmedLeadsMap.set(record.leadId.toString(), record.id);
+          }
+        });
+        
+        console.log('✅ Leads with confirmed contracts:', Array.from(confirmedLeadsMap.keys()));
+        console.log('📧 SMS record IDs:', Array.from(confirmedLeadsMap.values()));
+        setLeadsWithConfirmedContracts(confirmedLeadsMap);
+      } else {
+        console.error('Failed to fetch SMS records for contract check');
+      }
+    } catch (error) {
+      console.error('Error checking confirmed contracts:', error);
+    }
+  };
+
   const initializePipelineLeads = async (pipeline: Pipeline) => {
     try {
       const token = localStorage.getItem('authToken');
@@ -822,6 +870,9 @@ export default function Dashboard() {
         setPipelineLeads(leadsByStage);
         console.log('Pipeline leads loaded:', leadsByStage);
         console.log('Total leads in all stages:', Object.values(leadsByStage).flat().length);
+        
+        // Check for confirmed SMS contracts
+        await checkConfirmedContracts(allLeadIds);
       } else {
         console.error('Failed to fetch pipeline items');
         // Fallback to empty stages
@@ -1170,6 +1221,10 @@ export default function Dashboard() {
       setSmsPhone(editingLead.phone);
     }
 
+    // Store the lead for SMS linking
+    setSelectedLeadForSms(editingLead);
+    console.log('📝 Lead selected for SMS:', editingLead.id?.toString(), editingLead.companyName || editingLead.org_name);
+
     // Close the modal
     setShowLeadEditModal(false);
     setEditingLead(null);
@@ -1249,6 +1304,53 @@ export default function Dashboard() {
     }
   };
 
+  // Handle converting lead to customer
+  const handleConvertToCustomer = async (lead: Lead) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+
+      const confirmed = window.confirm(
+        `Convert ${lead.companyName || lead.title} to customer?\n\nThis will move them to the sales database.`
+      );
+      
+      if (!confirmed) return;
+
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      
+      // Get the SMS record ID that confirmed this conversion
+      const smsRecordId = leadsWithConfirmedContracts.get(lead.id.toString());
+      
+      console.log(`🔄 Converting lead ${lead.id} to customer with SMS record: ${smsRecordId}`);
+      
+      const response = await fetch(`${API_BASE_URL}/api/leads-collection/${lead.id}/convert-to-customer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ smsRecordId })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        toast.success('Lead converted to customer!');
+        console.log('✅ Conversion result:', result);
+        
+        // Refresh pipeline leads
+        if (assignedPipeline) {
+          await initializePipelineLeads(assignedPipeline);
+        }
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Failed to convert lead to customer');
+      }
+    } catch (error) {
+      console.error('Error converting lead to customer:', error);
+      toast.error('Failed to convert lead to customer');
+    }
+  };
+
   // Sortable Lead Component
   const SortableLead = ({ lead }: { lead: Lead }) => {
     const {
@@ -1267,6 +1369,7 @@ export default function Dashboard() {
     };
 
     const formattedPhone = lead.phone ? formatPhoneNumber(lead.phone) : '';
+    const hasConfirmedContract = leadsWithConfirmedContracts.has(lead.id.toString());
 
     return (
       <div
@@ -1294,6 +1397,20 @@ export default function Dashboard() {
               <p className="text-xs text-gray-500 mt-1 truncate">
                 ✉️ {lead.email}
               </p>
+            )}
+            
+            {/* Convert to Customer button */}
+            {hasConfirmedContract && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleConvertToCustomer(lead);
+                }}
+                className="mt-2 w-full px-2 py-1 text-xs font-medium text-white bg-green-500 hover:bg-green-600 rounded transition-colors"
+                title="Convert to customer"
+              >
+                Convert to Customer
+              </button>
             )}
           </div>
           <div className="flex-shrink-0 ml-2 flex flex-col items-end space-y-1">
@@ -1536,7 +1653,9 @@ export default function Dashboard() {
           contact_number: formattedPhone, // E.164 format
           body: selectedProduct.smsTemplate,
           templateData: templateData,
-          restrict_once: 'No' // Allow sending to same number multiple times
+          restrict_once: 'No', // Allow sending to same number multiple times
+          leadId: selectedLeadForSms?.id?.toString(), // Link SMS to the lead
+          leadName: selectedLeadForSms?.companyName || selectedLeadForSms?.org_name
         }),
       });
 
@@ -1552,10 +1671,12 @@ export default function Dashboard() {
           contactNumber: smsPhone,
           message: selectedProduct.smsTemplate,
           sentAt: new Date(),
-          contractConfirmed: false
+          contractConfirmed: false,
+          leadId: selectedLeadForSms?.id?.toString(),
+          leadName: selectedLeadForSms?.companyName || selectedLeadForSms?.org_name
         };
         
-        console.log('📱 Created SMS record:', smsRecord);
+        console.log('📱 Created SMS record with lead link:', smsRecord);
         
         setSentSmsRecords(prev => [smsRecord, ...prev]);
         

@@ -19,7 +19,8 @@ import {
   UserX,
   CheckCircle,
   XCircle,
-  Phone
+  Phone,
+  Database
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -37,6 +38,14 @@ interface UserRecord {
   lastLoginAt?: Date;
   disabled: boolean;
   justcallAgentId?: string;
+  database?: string;
+}
+
+interface Database {
+  id: string;
+  name: string;
+  type: 'leads' | 'sales';
+  description: string;
 }
 
 export default function UsersPage() {
@@ -44,6 +53,7 @@ export default function UsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserRecord[]>([]);
+  const [databases, setDatabases] = useState<Database[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [authLevelFilter, setAuthLevelFilter] = useState('all');
@@ -57,12 +67,14 @@ export default function UsersPage() {
     firstName: '',
     lastName: '',
     authLevel: 0,
-    justcallAgentId: ''
+    justcallAgentId: '',
+    database: ''
   });
 
   useEffect(() => {
     if (user && user.authLevel === 1) {
       fetchUsers();
+      fetchDatabases();
     } else if (!loading) {
       router.push('/dashboard');
     }
@@ -118,13 +130,49 @@ export default function UsersPage() {
     }
   };
 
+  const fetchDatabases = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      
+      console.log('🗄️ Fetching databases from:', `${API_BASE_URL}/api/databases`);
+      
+      const response = await fetch(`${API_BASE_URL}/api/databases`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      console.log('🗄️ Databases response status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('🗄️ Databases data:', data);
+        console.log('🗄️ All databases:', data.databases);
+        
+        // Filter to only show sales databases
+        const salesDatabases = (data.databases || []).filter((db: Database) => db.type === 'sales');
+        console.log('🗄️ Sales databases:', salesDatabases);
+        
+        setDatabases(salesDatabases);
+        console.log(`🗄️ Set ${salesDatabases.length} sales databases`);
+      } else {
+        const error = await response.json();
+        console.error('❌ Failed to fetch databases:', error);
+      }
+    } catch (error: any) {
+      console.error('❌ Error fetching databases:', error);
+    }
+  };
+
   const handleEditUser = (userRecord: UserRecord) => {
     setEditingUser(userRecord);
     setEditForm({
       firstName: userRecord.firstName || '',
       lastName: userRecord.lastName || '',
       authLevel: userRecord.authLevel,
-      justcallAgentId: userRecord.justcallAgentId || ''
+      justcallAgentId: userRecord.justcallAgentId || '',
+      database: userRecord.database || ''
     });
   };
 
@@ -207,7 +255,7 @@ export default function UsersPage() {
 
   const handleCancelEdit = () => {
     setEditingUser(null);
-    setEditForm({ firstName: '', lastName: '', authLevel: 0, justcallAgentId: '' });
+    setEditForm({ firstName: '', lastName: '', authLevel: 0, justcallAgentId: '', database: '' });
   };
 
   const applyFilters = () => {
@@ -439,7 +487,7 @@ export default function UsersPage() {
 
               {/* Date Filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Created</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Registration Date</label>
                 <select
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value)}
@@ -511,8 +559,8 @@ export default function UsersPage() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Role</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">JustCall</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Database</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Last Login</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Created</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">User ID</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Actions</th>
                   </tr>
@@ -577,13 +625,39 @@ export default function UsersPage() {
                         )}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
+                        {userRecord.database ? (
+                          <div className="flex items-center space-x-3">
+                            <div className="relative">
+                              <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg transform transition-transform hover:scale-110">
+                                <Database className="w-5 h-5 text-white" />
+                              </div>
+                              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse border-2 border-white"></div>
+                            </div>
+                            <div className="flex flex-col">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm font-semibold text-purple-600">Database</span>
+                                <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+                              </div>
+                              <span className="text-xs text-gray-600 font-medium">{userRecord.database}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-3">
+                            <div className="flex items-center justify-center w-10 h-10 bg-gray-200 rounded-lg">
+                              <Database className="w-5 h-5 text-gray-400" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-gray-500">No Database</span>
+                              <span className="text-xs text-gray-400">Not assigned</span>
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <div className="flex items-center text-sm text-gray-900">
                           <Clock className="w-4 h-4 mr-2 text-gray-400" />
                           {formatDate(userRecord.lastLoginAt)}
                         </div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{formatDate(userRecord.createdAt)}</div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-500 font-mono">
@@ -687,6 +761,33 @@ export default function UsersPage() {
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   This ID is used to link calls made through JustCall to this user
+                </p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Sales Database
+                </label>
+                <select
+                  value={editForm.database}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, database: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">No Database</option>
+                  {databases.length === 0 ? (
+                    <option value="" disabled>No sales databases available</option>
+                  ) : (
+                    databases.map(db => (
+                      <option key={db.id} value={db.id}>
+                        {db.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {databases.length === 0 
+                    ? 'No sales databases found. Create one in the Databases section first.' 
+                    : `Assign this user to a sales database (${databases.length} available)`}
                 </p>
               </div>
             </div>

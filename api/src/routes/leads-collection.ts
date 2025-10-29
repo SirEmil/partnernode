@@ -591,4 +591,106 @@ router.put('/:leadId', authenticateToken, async (req, res) => {
   }
 });
 
+// Convert lead to customer
+router.post('/:id/convert-to-customer', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?.uid;
+    const leadId = req.params.id;
+    const { smsRecordId } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({
+        error: 'User not authenticated'
+      });
+    }
+
+    console.log(`🔄 Converting lead ${leadId} to customer with SMS record: ${smsRecordId}`);
+
+    // Get the converting user's assigned database
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const userData = userDoc.data();
+    const assignedDatabase = userData?.database;
+
+    if (!assignedDatabase) {
+      return res.status(400).json({
+        success: false,
+        message: 'User is not assigned to a sales database. Please contact your administrator.'
+      });
+    }
+
+    console.log(`📊 User's assigned database: ${assignedDatabase}`);
+
+    // Get the lead
+    const leadDoc = await db.collection('leads').doc(leadId).get();
+
+    if (!leadDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lead not found'
+      });
+    }
+
+    const leadData = leadDoc.data();
+    
+    // Get existing conversion SMS IDs (if any)
+    const existingConversionSmsIds = leadData?.conversionSmsIds || [];
+
+    // Prepare update payload
+    const updatePayload: any = {
+      status: 'customer',
+      convertedToCustomerAt: new Date(),
+      convertedBy: userId,
+      updatedAt: new Date()
+    };
+
+    // Add SMS record ID to conversion array if provided
+    if (smsRecordId && !existingConversionSmsIds.includes(smsRecordId)) {
+      updatePayload.conversionSmsIds = [...existingConversionSmsIds, smsRecordId];
+      console.log(`📧 Adding SMS record ${smsRecordId} to conversion history`);
+    }
+
+    // Update lead status to indicate it's now a customer
+    await db.collection('leads').doc(leadId).update(updatePayload);
+
+    // Add lightweight entry to the user's assigned sales database
+    const databaseEntry = {
+      leadId: leadId,
+      addedAt: new Date(),
+      lastChanged: new Date(),
+      addedBy: userId,
+      status: 'active'
+    };
+
+    // Store in the database's entries subcollection
+    await db.collection(assignedDatabase).doc('entries').collection('entries').doc(leadId).set(databaseEntry);
+    
+    console.log(`✅ Lead entry added to database: ${assignedDatabase}/entries/${leadId}`);
+    console.log('✅ Lead converted to customer successfully');
+    console.log(`📊 Total conversion SMS records: ${updatePayload.conversionSmsIds?.length || existingConversionSmsIds.length}`);
+
+    res.json({
+      success: true,
+      message: 'Lead converted to customer successfully',
+      leadId: leadId,
+      database: assignedDatabase,
+      conversionSmsIds: updatePayload.conversionSmsIds || existingConversionSmsIds
+    });
+
+  } catch (error: any) {
+    console.error('Error converting lead to customer:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to convert lead to customer',
+      error: error.message
+    });
+  }
+});
+
 export default router;

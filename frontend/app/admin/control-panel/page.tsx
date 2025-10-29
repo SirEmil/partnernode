@@ -115,6 +115,17 @@ interface Lead {
   updatedAt: Date;
 }
 
+interface LeadDatabase {
+  id: string;
+  name: string;
+  description: string;
+  type: 'leads' | 'sales';
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string;
+  leadCount?: number;
+}
+
 // Cool Electrical Icon Component
 const CoolElectricalIcon = ({ className }: { className?: string }) => {
   return (
@@ -392,6 +403,7 @@ export default function ControlPanelPage() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [databases, setDatabases] = useState<LeadDatabase[]>([]);
   const [filteredPipelines, setFilteredPipelines] = useState<Pipeline[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -713,14 +725,28 @@ export default function ControlPanelPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingPipeline, setEditingPipeline] = useState<Pipeline | null>(null);
+  const [showCreateDatabaseModal, setShowCreateDatabaseModal] = useState(false);
+  const [editingDatabase, setEditingDatabase] = useState<LeadDatabase | null>(null);
+  const [databaseFormData, setDatabaseFormData] = useState<{
+    name: string;
+    description: string;
+    type: 'leads' | 'sales';
+  }>({
+    name: '',
+    description: '',
+    type: 'leads'
+  });
   const [showStagesModal, setShowStagesModal] = useState(false);
   const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
   const [editingStage, setEditingStage] = useState<PipelineStage | null>(null);
+  const [showPipelineViewModal, setShowPipelineViewModal] = useState(false);
+  const [viewingPipeline, setViewingPipeline] = useState<Pipeline | null>(null);
+  const [pipelineViewLeads, setPipelineViewLeads] = useState<{[stageId: string]: Lead[]}>({});
   const [localStages, setLocalStages] = useState<PipelineStage[]>([]);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [pipelineToDelete, setPipelineToDelete] = useState<Pipeline | null>(null);
   const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
-  const [selectedSection, setSelectedSection] = useState<'pipelines' | 'customers' | 'automations' | 'leads' | 'custom-fields'>('pipelines');
+  const [selectedSection, setSelectedSection] = useState<'pipelines' | 'databases' | 'automations' | 'leads' | 'custom-fields'>('pipelines');
   const [stageFormData, setStageFormData] = useState({
     name: '',
     isRequired: false,
@@ -797,8 +823,8 @@ export default function ControlPanelPage() {
 
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
       
-      // Fetch pipelines, users, customers, and leads in parallel
-      const [pipelinesResponse, usersResponse, customersResponse, leadsResponse] = await Promise.all([
+      // Fetch pipelines, users, customers, leads, and databases in parallel
+      const [pipelinesResponse, usersResponse, customersResponse, leadsResponse, databasesResponse] = await Promise.all([
         fetch(`${API_BASE_URL}/api/pipelines`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
@@ -809,6 +835,9 @@ export default function ControlPanelPage() {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
         fetch(`${API_BASE_URL}/api/leads-collection`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_BASE_URL}/api/databases`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -834,6 +863,11 @@ export default function ControlPanelPage() {
         console.log('Sample lead structure:', leadsData.leads?.[0]);
         console.log('Sample lead IDs:', leadsData.leads?.slice(0, 3).map((lead: any) => ({ id: lead.id, length: lead.id?.length })));
         setLeads(leadsData.leads || []);
+      }
+
+      if (databasesResponse.ok) {
+        const databasesData = await databasesResponse.json();
+        setDatabases(databasesData.databases || []);
       }
 
     } catch (error: any) {
@@ -1002,6 +1036,223 @@ export default function ControlPanelPage() {
     } catch (error: any) {
       console.error('Error deleting pipeline:', error);
       toast.error(`Error deleting pipeline: ${error.message || 'Network error'}`);
+    }
+  };
+
+  // Database CRUD functions
+  const handleCreateDatabase = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      
+      const response = await fetch(`${API_BASE_URL}/api/databases`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(databaseFormData),
+      });
+
+      if (response.ok) {
+        toast.success('Database created successfully!');
+        setShowCreateDatabaseModal(false);
+        setDatabaseFormData({ name: '', description: '', type: 'leads' });
+        fetchData();
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Failed to create database');
+      }
+    } catch (error: any) {
+      console.error('Error creating database:', error);
+      toast.error(`Error creating database: ${error.message || 'Network error'}`);
+    }
+  };
+
+  const handleUpdateDatabase = async () => {
+    if (!editingDatabase) return;
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      
+      // Only send description (name and type cannot be changed)
+      const response = await fetch(`${API_BASE_URL}/api/databases/${editingDatabase.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ description: databaseFormData.description }),
+      });
+
+      if (response.ok) {
+        toast.success('Database updated successfully!');
+        setEditingDatabase(null);
+        setDatabaseFormData({ name: '', description: '', type: 'leads' });
+        fetchData();
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Failed to update database');
+      }
+    } catch (error: any) {
+      console.error('Error updating database:', error);
+      toast.error(`Error updating database: ${error.message || 'Network error'}`);
+    }
+  };
+
+  const handleDeleteDatabase = async (databaseId: string) => {
+    if (!confirm('Are you sure you want to delete this database? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      
+      const response = await fetch(`${API_BASE_URL}/api/databases/${databaseId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        toast.success('Database deleted successfully!');
+        fetchData();
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Failed to delete database');
+      }
+    } catch (error: any) {
+      console.error('Error deleting database:', error);
+      toast.error(`Error deleting database: ${error.message || 'Network error'}`);
+    }
+  };
+
+  const handleEditDatabase = (database: LeadDatabase) => {
+    setEditingDatabase(database);
+    setDatabaseFormData({
+      name: database.name,
+      description: database.description,
+      type: database.type
+    });
+    setShowCreateDatabaseModal(true);
+  };
+
+  const fetchPipelineLeads = async (pipeline: Pipeline) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').trim();
+      
+      // Fetch pipeline items
+      const response = await fetch(`${API_BASE_URL}/api/pipelines/${pipeline.id}/items`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const itemsByStage = result.itemsByStage || {};
+        
+        // Convert pipeline items to Lead format
+        const leadsByStage: {[stageId: string]: Lead[]} = {};
+        
+        pipeline.stages.forEach(stage => {
+          leadsByStage[stage.id] = [];
+        });
+
+        // Fetch full lead data for each pipeline item
+        const allLeadIds = result.items.map((item: any) => item.leadId);
+        
+        if (allLeadIds.length > 0) {
+          const leadsResponse = await fetch(`${API_BASE_URL}/api/leads-collection/bulk-fetch`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ leadIds: allLeadIds })
+          });
+
+          if (leadsResponse.ok) {
+            const leadsData = await leadsResponse.json();
+            
+            // Create a map of leadId to lead data
+            const leadsMap = new Map();
+            leadsData.leads.forEach((lead: any) => {
+              leadsMap.set(lead.id, lead);
+            });
+
+            Object.entries(itemsByStage).forEach(([stageId, items]) => {
+              leadsByStage[stageId] = (items as any[]).map((item: any) => {
+                const fullLeadData = leadsMap.get(item.leadId);
+                
+                return {
+                  id: item.leadId,
+                  title: fullLeadData?.title || 'Unnamed Lead',
+                  owner_name: fullLeadData?.owner_name || "Current User",
+                  person_name: fullLeadData?.person_name || 'Unknown',
+                  org_name: fullLeadData?.org_name || "Unknown Company",
+                  status: fullLeadData?.status || "open",
+                  add_time: fullLeadData?.add_time || item.addedAt || new Date().toISOString(),
+                  phone: fullLeadData?.phone || '',
+                  email: fullLeadData?.email || '',
+                  notes: fullLeadData?.notes || '',
+                  companyName: fullLeadData?.companyName || fullLeadData?.org_name || 'Unknown Company',
+                  name: fullLeadData?.name || fullLeadData?.person_name || 'Unknown',
+                  org_number: fullLeadData?.org_number || '',
+                  postal_code: fullLeadData?.postal_code || '',
+                  postal_area: fullLeadData?.postal_area || '',
+                  address: fullLeadData?.address || '',
+                  city: fullLeadData?.city || '',
+                  createdAt: fullLeadData?.createdAt || new Date().toISOString(),
+                  updatedAt: fullLeadData?.updatedAt || new Date().toISOString()
+                };
+              });
+            });
+          } else {
+            console.error('Failed to fetch full lead data');
+            // Fallback to using pipeline item data only
+            Object.entries(itemsByStage).forEach(([stageId, items]) => {
+              leadsByStage[stageId] = (items as any[]).map((item: any) => ({
+                id: item.leadId,
+                title: 'Unnamed Lead',
+                owner_name: "Current User",
+                person_name: 'Unknown',
+                org_name: "Unknown Company",
+                status: "open",
+                add_time: item.addedAt || new Date().toISOString(),
+                phone: '',
+                email: '',
+                notes: '',
+                companyName: 'Unknown Company',
+                name: 'Unknown',
+                org_number: '',
+                postal_code: '',
+                postal_area: '',
+                address: '',
+                city: '',
+                createdAt: new Date(),
+                updatedAt: new Date()
+              } as Lead));
+            });
+          }
+        } else {
+          // No items to process
+          pipeline.stages.forEach(stage => {
+            leadsByStage[stage.id] = [];
+          });
+        }
+
+        setPipelineViewLeads(leadsByStage);
+      }
+    } catch (error) {
+      console.error('Error fetching pipeline leads:', error);
+      toast.error('Failed to load pipeline leads');
     }
   };
 
@@ -1624,18 +1875,18 @@ export default function ControlPanelPage() {
             )}
           </div>
 
-          {/* Customer Database Section */}
+          {/* Databases Section */}
           <div 
-            onClick={() => setSelectedSection('customers')}
+            onClick={() => setSelectedSection('databases')}
             className={`relative p-6 rounded-2xl cursor-pointer transition-all duration-300 transform hover:scale-105 hover:shadow-xl ${
-              selectedSection === 'customers' 
+              selectedSection === 'databases' 
                 ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-lg' 
                 : 'bg-white border border-gray-200 hover:border-emerald-300'
             }`}
           >
             <div className="flex items-center space-x-4">
               <div className={`p-3 rounded-xl ${
-                selectedSection === 'customers' 
+                selectedSection === 'databases' 
                   ? 'bg-white/20' 
                   : 'bg-emerald-100'
               }`}>
@@ -1643,22 +1894,22 @@ export default function ControlPanelPage() {
               </div>
               <div>
                 <h3 className={`text-lg font-semibold ${
-                  selectedSection === 'customers' 
+                  selectedSection === 'databases' 
                     ? 'text-white' 
                     : 'text-gray-900'
                 }`}>
-                  Customer Database
+                  Databases
                 </h3>
                 <p className={`text-sm ${
-                  selectedSection === 'customers' 
+                  selectedSection === 'databases' 
                     ? 'text-emerald-100' 
                     : 'text-gray-600'
                 }`}>
-                  Manage customer data
+                  Create and manage lead databases
                 </p>
               </div>
             </div>
-            {selectedSection === 'customers' && (
+            {selectedSection === 'databases' && (
               <div className="absolute top-4 right-4">
                 <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
               </div>
@@ -1810,69 +2061,110 @@ export default function ControlPanelPage() {
             </div>
           )}
 
-          {selectedSection === 'customers' && (
+          {selectedSection === 'databases' && (
             <div className="p-8">
-              <div className="mb-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Customer Database</h2>
-                <p className="text-gray-600">Manage and organize your customer information</p>
+              {/* Database Header with Create Button */}
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Database Management</h2>
+                  <p className="text-gray-600">Create and manage databases for organizing your leads</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingDatabase(null);
+                    setDatabaseFormData({ name: '', description: '', type: 'leads' });
+                    setShowCreateDatabaseModal(true);
+                  }}
+                  className="flex items-center space-x-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white px-6 py-3 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span className="font-medium">Create Database</span>
+                </button>
               </div>
 
+              {/* Database Cards */}
               {dataLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-gray-600">Loading customers...</p>
+                  <p className="text-gray-600">Loading databases...</p>
                 </div>
-              ) : customers.length === 0 ? (
-                <div className="text-center py-12">
-                  <Database className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No customers found</p>
-                  <p className="text-sm text-gray-400 mt-2">Customer data will appear here when available</p>
+              ) : databases.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                  <Database className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-600 mb-2">No databases yet</h3>
+                  <p className="text-gray-500 mb-4">Create your first database to start organizing leads</p>
+                  <button
+                    onClick={() => {
+                      setEditingDatabase(null);
+                      setDatabaseFormData({ name: '', description: '', type: 'leads' });
+                      setShowCreateDatabaseModal(true);
+                    }}
+                    className="inline-flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Create Database</span>
+                  </button>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {customers.map((customer) => (
-                      <div key={customer.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-gray-900 mb-1">
-                              {customer.name || customer.companyName || customer.customerName || 'Unnamed Customer'}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {databases.map((database) => (
+                    <div key={database.id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-200 hover:border-emerald-300">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-lg font-bold text-gray-900">
+                              {database.name}
                             </h3>
-                            <p className="text-sm text-gray-600">
-                              {customer.email || customer.phone || 'No contact info'}
-                            </p>
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                              database.type === 'leads' 
+                                ? 'bg-blue-100 text-blue-700' 
+                                : 'bg-purple-100 text-purple-700'
+                            }`}>
+                              {database.type === 'leads' ? 'Leads' : 'Sales'}
+                            </span>
                           </div>
-                          <div className="text-xs text-gray-500">
-                            {formatDate(customer.createdAt)}
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          {customer.companyName && (
-                            <div className="text-sm">
-                              <span className="text-gray-500">Company:</span> {customer.companyName}
-                            </div>
-                          )}
-                          {customer.organizationNumber && (
-                            <div className="text-sm">
-                              <span className="text-gray-500">Org #:</span> {customer.organizationNumber}
-                            </div>
-                          )}
-                          {customer.phone && (
-                            <div className="text-sm">
-                              <span className="text-gray-500">Phone:</span> {customer.phone}
-                            </div>
-                          )}
+                          <p className="text-sm text-gray-600 mb-3">
+                            {database.description || 'No description'}
+                          </p>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                  
-                  <div className="mt-4">
-                    <p className="text-sm text-gray-600">
-                      Showing {customers.length} customers
-                    </p>
-                  </div>
+                      
+                      <div className="border-t border-gray-100 pt-4 mb-4">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500">Created</span>
+                          <span className="text-gray-900 font-medium">{formatDate(database.createdAt)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm mt-2">
+                          <span className="text-gray-500">Type</span>
+                          <span className="text-gray-900 font-medium capitalize">{database.type} Database</span>
+                        </div>
+                        {database.leadCount !== undefined && (
+                          <div className="flex items-center justify-between text-sm mt-2">
+                            <span className="text-gray-500">Leads</span>
+                            <span className="text-emerald-600 font-semibold">{database.leadCount}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEditDatabase(database)}
+                          className="w-full flex items-center justify-center space-x-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                          <span>Edit</span>
+                        </button>
+                        {/* Database deletion disabled for now */}
+                        {/* <button
+                          onClick={() => handleDeleteDatabase(database.id)}
+                          className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Delete</span>
+                        </button> */}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -2873,6 +3165,17 @@ export default function ControlPanelPage() {
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                     <div className="flex items-center space-x-2">
                       <button
+                        onClick={async () => {
+                          setViewingPipeline(pipeline);
+                          setShowPipelineViewModal(true);
+                          await fetchPipelineLeads(pipeline);
+                        }}
+                        className="px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                        title="View pipeline board"
+                      >
+                        View
+                      </button>
+                      <button
                         onClick={() => {
                           setSelectedPipeline(pipeline);
                           setShowStagesModal(true);
@@ -3214,6 +3517,91 @@ export default function ControlPanelPage() {
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
               >
                 Update Pipeline
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create/Edit Database Modal */}
+      {showCreateDatabaseModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              {editingDatabase ? `Edit Database: ${editingDatabase.name}` : 'Create New Database'}
+            </h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Database Name *
+                </label>
+                <input
+                  type="text"
+                  value={databaseFormData.name}
+                  onChange={(e) => setDatabaseFormData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="Enter database name"
+                  disabled={!!editingDatabase}
+                />
+                {editingDatabase && (
+                  <p className="text-xs text-gray-500 mt-1">Database name cannot be changed</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Database Type *
+                </label>
+                <select
+                  value={databaseFormData.type}
+                  onChange={(e) => setDatabaseFormData(prev => ({ ...prev, type: e.target.value as 'leads' | 'sales' }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  disabled={!!editingDatabase}
+                >
+                  <option value="leads">Leads Database</option>
+                  <option value="sales">Sales Database</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {editingDatabase 
+                    ? 'Database type cannot be changed' 
+                    : databaseFormData.type === 'leads' 
+                      ? 'For managing potential customers and prospects' 
+                      : 'For tracking active sales and closed deals'}
+                </p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={databaseFormData.description}
+                  onChange={(e) => setDatabaseFormData(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="Enter database description"
+                  rows={3}
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowCreateDatabaseModal(false);
+                  setEditingDatabase(null);
+                  setDatabaseFormData({ name: '', description: '', type: 'leads' });
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={editingDatabase ? handleUpdateDatabase : handleCreateDatabase}
+                disabled={!databaseFormData.name.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-md transition-colors"
+              >
+                {editingDatabase ? 'Update Database' : 'Create Database'}
               </button>
             </div>
           </div>
@@ -4099,6 +4487,182 @@ export default function ControlPanelPage() {
               >
                 Assign Pipeline
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pipeline View Modal */}
+      {showPipelineViewModal && viewingPipeline && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">{viewingPipeline.name}</h2>
+                <p className="text-sm text-gray-600 mt-1">{viewingPipeline.description}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowPipelineViewModal(false);
+                  setViewingPipeline(null);
+                  setPipelineViewLeads({});
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Pipeline Board */}
+            <div className="flex-1 overflow-auto p-6">
+              {/* Pipeline Items Section */}
+              {(() => {
+                // Filter to only show actual workflow items (with valid types)
+                const workflowItems = viewingPipeline.items?.filter(item => 
+                  item.type && ['sms', 'email', 'call', 'task'].includes(item.type)
+                ) || [];
+                
+                return workflowItems.length > 0 && (
+                  <div className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border border-blue-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                      <Workflow className="w-5 h-5 mr-2 text-purple-600" />
+                      Pipeline Workflow Items
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                      {workflowItems
+                        .sort((a, b) => a.order - b.order)
+                        .map((item, index) => (
+                        <div key={item.id} className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <div className="flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-600 rounded-full text-xs font-medium">
+                                {item.order}
+                              </div>
+                              <div className={`px-2 py-1 rounded text-xs font-medium ${
+                                item.type === 'sms' ? 'bg-green-100 text-green-700' :
+                                item.type === 'email' ? 'bg-blue-100 text-blue-700' :
+                                item.type === 'call' ? 'bg-purple-100 text-purple-700' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                                {item.type ? item.type.toUpperCase() : 'TASK'}
+                              </div>
+                            </div>
+                            {item.isRequired && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
+                                Required
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="font-medium text-gray-900 text-sm mb-1">{item.name}</h4>
+                          {item.description && (
+                            <p className="text-xs text-gray-600 line-clamp-2">{item.description}</p>
+                          )}
+                        </div>
+                        ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Stages and Leads Section */}
+              {viewingPipeline.stages.length > 0 ? (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                    <Users className="w-5 h-5 mr-2 text-blue-600" />
+                    Pipeline Stages & Leads
+                  </h3>
+                  <div className={`grid gap-4 h-full ${
+                    viewingPipeline.stages.length === 1 ? 'grid-cols-1' :
+                    viewingPipeline.stages.length === 2 ? 'grid-cols-2' :
+                    viewingPipeline.stages.length === 3 ? 'grid-cols-3' :
+                    viewingPipeline.stages.length === 4 ? 'grid-cols-4' :
+                    viewingPipeline.stages.length === 5 ? 'grid-cols-5' :
+                    'grid-cols-6'
+                  }`}>
+                  {viewingPipeline.stages
+                    .sort((a, b) => a.order - b.order)
+                    .map((stage) => (
+                      <div key={stage.id} className="bg-gray-50 rounded-lg border border-gray-200 h-full flex flex-col">
+                        {/* Stage Header */}
+                        <div className="p-4 border-b border-gray-200 bg-white rounded-t-lg flex-shrink-0">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <div className="flex items-center justify-center w-6 h-6 bg-purple-100 text-purple-600 rounded-full text-xs font-medium">
+                                {stage.order}
+                              </div>
+                              <h5 className="font-medium text-gray-900 text-sm">
+                                {stage.name}
+                              </h5>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <span className="text-xs text-gray-500">
+                                {pipelineViewLeads[stage.id]?.length || 0}
+                              </span>
+                              {stage.isRequired && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                  Required
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Stage Content - Leads */}
+                        <div className="flex-1 overflow-y-auto p-3">
+                          <div className="space-y-2">
+                            {(pipelineViewLeads[stage.id] || []).map((lead) => {
+                              const formattedPhone = lead.phone || '';
+                              return (
+                                <div
+                                  key={lead.id}
+                                  className="p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-medium text-gray-900 text-sm truncate">
+                                        {lead.companyName || lead.title || 'Unnamed Company'}
+                                      </h4>
+                                      <p className="text-xs text-gray-600 mt-1 truncate">
+                                        {lead.name || lead.person_name || 'Unknown Contact'}
+                                      </p>
+                                      {formattedPhone && (
+                                        <p className="text-xs text-blue-600 mt-1 truncate">
+                                          📞 {formattedPhone}
+                                        </p>
+                                      )}
+                                      {lead.email && (
+                                        <p className="text-xs text-gray-500 mt-1 truncate">
+                                          ✉️ {lead.email}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="flex-shrink-0 ml-2">
+                                      <span className={`inline-block w-2 h-2 rounded-full ${
+                                        lead.status === 'open' ? 'bg-green-500' : 'bg-gray-400'
+                                      }`}></span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {(pipelineViewLeads[stage.id]?.length === 0) && (
+                              <div className="text-center py-8 text-gray-400 text-sm">
+                                No leads in this stage
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Workflow className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                  <p>No stages configured for this pipeline</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

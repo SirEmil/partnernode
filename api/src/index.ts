@@ -24,6 +24,7 @@ import webhookRoutes from './routes/webhook';
 import usersRoutes from './routes/users';
 import pipelinesRoutes from './routes/pipelines';
 import callsRoutes from './routes/calls';
+import databasesRoutes from './routes/databases';
 
 // SSE (Server-Sent Events) for real-time updates
 interface SSEClient {
@@ -169,6 +170,7 @@ app.use('/api/webhook', webhookRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/pipelines', pipelinesRoutes);
 app.use('/api/calls', callsRoutes);
+app.use('/api/databases', databasesRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
