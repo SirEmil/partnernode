@@ -668,10 +668,10 @@ router.post('/:id/convert-to-customer', authenticateToken, async (req, res) => {
       status: 'active'
     };
 
-    // Store in the database's entries subcollection
-    await db.collection(assignedDatabase).doc('entries').collection('entries').doc(leadId).set(databaseEntry);
+    // Store in the database's entries subcollection: /databases/[databaseName]/entries/[leadId]
+    await db.collection('databases').doc(assignedDatabase).collection('entries').doc(leadId).set(databaseEntry);
     
-    console.log(`✅ Lead entry added to database: ${assignedDatabase}/entries/${leadId}`);
+    console.log(`✅ Lead entry added to database: databases/${assignedDatabase}/entries/${leadId}`);
     console.log('✅ Lead converted to customer successfully');
     console.log(`📊 Total conversion SMS records: ${updatePayload.conversionSmsIds?.length || existingConversionSmsIds.length}`);
 
